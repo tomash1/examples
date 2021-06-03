@@ -36,7 +36,7 @@ typealias FileInfo = (name: String, extension: String)
 
 /// Information about the MobileNet SSD model.
 enum MobileNetSSD {
-  static let modelInfo: FileInfo = (name: "detect", extension: "tflite")
+  static let modelInfo: FileInfo = (name: "model_float16", extension: "tflite")
   static let labelsInfo: FileInfo = (name: "labelmap", extension: "txt")
 }
 
@@ -55,18 +55,19 @@ class ModelDataHandler: NSObject {
   // MARK: Model parameters
   let batchSize = 1
   let inputChannels = 3
-  let inputWidth = 300
-  let inputHeight = 300
+  let inputWidth = 480
+  let inputHeight = 480
 
   // image mean and std for floating model, should be consistent with parameters used in model training
-  let imageMean: Float = 127.5
-  let imageStd:  Float = 127.5
+  var imageMean: Float = 0
+  var imageStd:  Float = 0
 
   // MARK: Private properties
   private var labels: [String] = []
 
   /// TensorFlow Lite `Interpreter` object for performing inference on a given model.
   private var interpreter: Interpreter
+  private var postProcess: ModelPostProcessor
 
   private let bgraPixel = (channels: 4, alphaComponent: 3, lastBgrComponent: 2)
   private let rgbPixelChannels = 3
@@ -114,10 +115,11 @@ class ModelDataHandler: NSObject {
       return nil
     }
 
+    postProcess = ModelPostProcessor()
     super.init()
 
     // Load the classes listed in the labels file.
-    loadLabels(fileInfo: labelsFileInfo)
+    // loadLabels(fileInfo: labelsFileInfo)
   }
 
   /// This class handles all data preprocessing and makes calls to run inference on a given frame
@@ -143,9 +145,6 @@ class ModelDataHandler: NSObject {
 
     let interval: TimeInterval
     let outputBoundingBox: Tensor
-    let outputClasses: Tensor
-    let outputScores: Tensor
-    let outputCount: Tensor
     do {
       let inputTensor = try interpreter.input(at: 0)
 
@@ -168,26 +167,19 @@ class ModelDataHandler: NSObject {
       interval = Date().timeIntervalSince(startDate) * 1000
 
       outputBoundingBox = try interpreter.output(at: 0)
-      outputClasses = try interpreter.output(at: 1)
-      outputScores = try interpreter.output(at: 2)
-      outputCount = try interpreter.output(at: 3)
+
     } catch let error {
       print("Failed to invoke the interpreter with error: \(error.localizedDescription)")
       return nil
     }
 
-    // Formats the results
-    let resultArray = formatResults(
-      boundingBox: [Float](unsafeData: outputBoundingBox.data) ?? [],
-      outputClasses: [Float](unsafeData: outputClasses.data) ?? [],
-      outputScores: [Float](unsafeData: outputScores.data) ?? [],
-      outputCount: Int(([Float](unsafeData: outputCount.data) ?? [0])[0]),
-      width: CGFloat(imageWidth),
-      height: CGFloat(imageHeight)
-    )
-
+    postProcess.invoke(
+        outData: [Float](unsafeData: outputBoundingBox.data) ?? [],
+        imageWidth: CGFloat(imageWidth),
+        imageHeight: CGFloat(imageHeight)
+        )
     // Returns the inference time and inferences
-    let result = Result(inferenceTime: interval, inferences: resultArray)
+    let result = Result(inferenceTime: interval, inferences: [])
     return result
   }
 
@@ -241,21 +233,21 @@ class ModelDataHandler: NSObject {
   }
 
   /// Loads the labels from the labels file and stores them in the `labels` property.
-  private func loadLabels(fileInfo: FileInfo) {
-    let filename = fileInfo.name
-    let fileExtension = fileInfo.extension
-    guard let fileURL = Bundle.main.url(forResource: filename, withExtension: fileExtension) else {
-      fatalError("Labels file not found in bundle. Please add a labels file with name " +
-                   "\(filename).\(fileExtension) and try again.")
-    }
-    do {
-      let contents = try String(contentsOf: fileURL, encoding: .utf8)
-      labels = contents.components(separatedBy: .newlines)
-    } catch {
-      fatalError("Labels file named \(filename).\(fileExtension) cannot be read. Please add a " +
-                   "valid labels file and try again.")
-    }
-  }
+//  private func loadLabels(fileInfo: FileInfo) {
+//    let filename = fileInfo.name
+//    let fileExtension = fileInfo.extension
+//    guard let fileURL = Bundle.main.url(forResource: filename, withExtension: fileExtension) else {
+//      fatalError("Labels file not found in bundle. Please add a labels file with name " +
+//                   "\(filename).\(fileExtension) and try again.")
+//    }
+//    do {
+//      let contents = try String(contentsOf: fileURL, encoding: .utf8)
+//      labels = contents.components(separatedBy: .newlines)
+//    } catch {
+//      fatalError("Labels file named \(filename).\(fileExtension) cannot be read. Please add a " +
+//                   "valid labels file and try again.")
+//    }
+//  }
 
   /// Returns the RGB data representation of the given image buffer with the specified `byteCount`.
   ///
@@ -315,12 +307,14 @@ class ModelDataHandler: NSObject {
     if isModelQuantized {
       return byteData
     }
-
+    
+    let floatsByteData = byteData.asFloats()
+    calculateMeanAndStdFromFloats(floats: floatsByteData)
+    
     // Not quantized, convert to floats
-    let bytes = Array<UInt8>(unsafeData: byteData)!
     var floats = [Float]()
-    for i in 0..<bytes.count {
-      floats.append((Float(bytes[i]) - imageMean) / imageStd)
+    for i in 0..<floatsByteData.count {
+      floats.append((floatsByteData[i] - imageMean) / imageStd)
     }
     return Data(copyingBufferOf: floats)
   }
@@ -342,6 +336,13 @@ class ModelDataHandler: NSObject {
 
     return colorToAssign
   }
+    
+    private func calculateMeanAndStdFromFloats(floats: [Float]) {
+        let stride = vDSP_Stride(1)
+        let n = vDSP_Length(floats.count)
+        
+        vDSP_normalize(floats, stride, nil, stride, &imageMean, &imageStd, n)
+    }
 }
 
 // MARK: - Extensions
@@ -356,6 +357,15 @@ extension Data {
   init<T>(copyingBufferOf array: [T]) {
     self = array.withUnsafeBufferPointer(Data.init)
   }
+    
+   func asFloats() -> [Float] {
+        let bytes = Array<UInt8>(unsafeData: self)!
+        var floats = [Float]()
+        for i in 0..<self.count {
+          floats.append(Float(bytes[i]))
+        }
+        return floats
+    }
 }
 
 extension Array {
@@ -380,4 +390,6 @@ extension Array {
     }
     #endif  // swift(>=5.0)
   }
+    
+    
 }

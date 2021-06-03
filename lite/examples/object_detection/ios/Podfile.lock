@@ -1,20 +1,24 @@
 PODS:
+  - Matft (0.2.7)
   - TensorFlowLiteC (2.1.0)
   - TensorFlowLiteSwift (2.1.0):
     - TensorFlowLiteC (= 2.1.0)
 
 DEPENDENCIES:
+  - Matft
   - TensorFlowLiteSwift
 
 SPEC REPOS:
   trunk:
+    - Matft
     - TensorFlowLiteC
     - TensorFlowLiteSwift
 
 SPEC CHECKSUMS:
+  Matft: 81bb58cb12ace8a3b829678c595f88daba88d169
   TensorFlowLiteC: 215603d4426d93810eace5947e317389554a4b66
   TensorFlowLiteSwift: 9d8137f18d5ac30ca89bba4fbe118e0949ac5743
 
-PODFILE CHECKSUM: c5652649ac261f6bab7423641506d7c049f9ac7e
+PODFILE CHECKSUM: 8b792aebdd94eba4ab966abf1bceea3807aef299
 
-COCOAPODS: 1.9.1
+COCOAPODS: 1.10.1
