@@ -13,7 +13,10 @@
 		3F9917AA26656520007C5F92 /* model_float16.tflite in Resources */ = {isa = PBXBuildFile; fileRef = 3F9917A626656520007C5F92 /* model_float16.tflite */; };
 		3F9917AC26657BB4007C5F92 /* ModelPostProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9917AB26657BB4007C5F92 /* ModelPostProcessor.swift */; };
 		3F9917AE26658124007C5F92 /* SqueezeConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9917AD26658124007C5F92 /* SqueezeConfig.swift */; };
-		3FC2109E26696E9300EAC460 /* IndicesOperationsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FC2109D26696E9300EAC460 /* IndicesOperationsService.swift */; };
+		3FC2109E26696E9300EAC460 /* IndicesOperations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FC2109D26696E9300EAC460 /* IndicesOperations.swift */; };
+		3FC210A026699AAA00EAC460 /* PredictionBoxes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FC2109F26699AAA00EAC460 /* PredictionBoxes.swift */; };
+		3FC210A4266A1AC600EAC460 /* TTAService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FC210A3266A1AC600EAC460 /* TTAService.swift */; };
+		3FC210A6266A2AED00EAC460 /* PredictionInvoker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FC210A5266A2AED00EAC460 /* PredictionInvoker.swift */; };
 		73E71CACD0A3B2F3F231DCBD /* Pods_ObjectDetection.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7DB9BD7C8BFE6B9F50310BBF /* Pods_ObjectDetection.framework */; };
 		AA055D8921622F3E00B25948 /* labelmap.txt in Resources */ = {isa = PBXBuildFile; fileRef = AA055D8821622F3E00B25948 /* labelmap.txt */; };
 		AA119EA2217F337300DE46CF /* ModelDataHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA119EA1217F337300DE46CF /* ModelDataHandler.swift */; };
@@ -40,7 +43,10 @@
 		3F9917A626656520007C5F92 /* model_float16.tflite */ = {isa = PBXFileReference; lastKnownFileType = file; path = model_float16.tflite; sourceTree = "<group>"; };
 		3F9917AB26657BB4007C5F92 /* ModelPostProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelPostProcessor.swift; sourceTree = "<group>"; };
 		3F9917AD26658124007C5F92 /* SqueezeConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SqueezeConfig.swift; sourceTree = "<group>"; };
-		3FC2109D26696E9300EAC460 /* IndicesOperationsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndicesOperationsService.swift; sourceTree = "<group>"; };
+		3FC2109D26696E9300EAC460 /* IndicesOperations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndicesOperations.swift; sourceTree = "<group>"; };
+		3FC2109F26699AAA00EAC460 /* PredictionBoxes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PredictionBoxes.swift; sourceTree = "<group>"; };
+		3FC210A3266A1AC600EAC460 /* TTAService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TTAService.swift; sourceTree = "<group>"; };
+		3FC210A5266A2AED00EAC460 /* PredictionInvoker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PredictionInvoker.swift; sourceTree = "<group>"; };
 		7DB9BD7C8BFE6B9F50310BBF /* Pods_ObjectDetection.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_ObjectDetection.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA055D8821622F3E00B25948 /* labelmap.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = labelmap.txt; sourceTree = "<group>"; };
 		AA119EA1217F337300DE46CF /* ModelDataHandler.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ModelDataHandler.swift; sourceTree = "<group>"; };
@@ -176,7 +182,10 @@
 				AA119EA1217F337300DE46CF /* ModelDataHandler.swift */,
 				3F9917AB26657BB4007C5F92 /* ModelPostProcessor.swift */,
 				3F9917AD26658124007C5F92 /* SqueezeConfig.swift */,
-				3FC2109D26696E9300EAC460 /* IndicesOperationsService.swift */,
+				3FC2109D26696E9300EAC460 /* IndicesOperations.swift */,
+				3FC2109F26699AAA00EAC460 /* PredictionBoxes.swift */,
+				3FC210A3266A1AC600EAC460 /* TTAService.swift */,
+				3FC210A5266A2AED00EAC460 /* PredictionInvoker.swift */,
 			);
 			path = ModelDataHandler;
 			sourceTree = "<group>";
@@ -342,13 +351,16 @@
 				AA119EA2217F337300DE46CF /* ModelDataHandler.swift in Sources */,
 				AAC58495214797E800FB532F /* StringExtension.swift in Sources */,
 				AA756E652150C996004BB0BC /* CameraFeedManager.swift in Sources */,
+				3FC210A6266A2AED00EAC460 /* PredictionInvoker.swift in Sources */,
 				AAAB09702189838A0015A1F2 /* CVPixelBufferExtension.swift in Sources */,
-				3FC2109E26696E9300EAC460 /* IndicesOperationsService.swift in Sources */,
+				3FC2109E26696E9300EAC460 /* IndicesOperations.swift in Sources */,
 				3F9917AE26658124007C5F92 /* SqueezeConfig.swift in Sources */,
+				3FC210A4266A1AC600EAC460 /* TTAService.swift in Sources */,
 				3F9917AC26657BB4007C5F92 /* ModelPostProcessor.swift in Sources */,
 				AAEF3D8D21A2BE2B0073AE1C /* UIColorExtension.swift in Sources */,
 				AA9AC59F212D39FC000B4E9D /* AppDelegate.swift in Sources */,
 				AA9AC5D7212D43E0000B4E9D /* PreviewView.swift in Sources */,
+				3FC210A026699AAA00EAC460 /* PredictionBoxes.swift in Sources */,
 				AA16E59B21807BAC00D9E153 /* InfoCell.swift in Sources */,
 				AA16E59D218081AA00D9E153 /* InferenceViewController.swift in Sources */,
 				AA16E59F2180822B00D9E153 /* CurvedView.swift in Sources */,
