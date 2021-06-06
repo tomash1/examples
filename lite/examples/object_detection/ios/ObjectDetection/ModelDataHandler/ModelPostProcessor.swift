@@ -9,6 +9,7 @@
 import Foundation
 import CoreImage
 import Matft
+import TensorFlowLite
 
 struct SlicedPredictions {
   public let probabilities: MfArray
@@ -54,7 +55,9 @@ struct ModelPostProcessor {
     return nil
   }
   
-  func invoke(outData: [Float]) -> PredictionBoxes? {
+  func invoke(modelOut: Tensor) -> PredictionBoxes? {
+    let outData = [Float](unsafeData: modelOut.data) ?? []
+    
     guard let config = self.config else {
       print("Unable to invoke post process - SqueezeConfig was not loaded.")
       return nil
@@ -74,8 +77,7 @@ struct ModelPostProcessor {
     var cls_idx: MfArray
     
     if (config.c.TOP_N_DETECTION > 0 && config.c.TOP_N_DETECTION < probabilities.count) {
-      let m = -config.c.TOP_N_DETECTION - 1
-      let order = probabilities.argsort()[~<m~<-1]
+      let order = Matft.deepcopy(probabilities.argsort(axis: 1, order: .Descending)[0~<3])
       probs = probabilities[order]
       orderedBoxes = boxes[order]
       cls_idx = classIndices[order]
@@ -87,9 +89,9 @@ struct ModelPostProcessor {
     }
     
     var result = PredictionBoxes(boxes: [], probabilities: [], classIndexes: [])
-    for classIdxInIteration in 0...config.c.CLASSES {
+    for classIdxInIteration in 0..<config.c.CLASSES {
       var indicesPerClass: [Int] = []
-      for i in 0...probs.count - 1 {
+      for i in 0..<probs.count {
         if let idx = cls_idx[i].toArray()[0] as? Int {
           if (idx == classIdxInIteration) {
             indicesPerClass.append(i)
@@ -103,8 +105,9 @@ struct ModelPostProcessor {
       let keep = nms(boxes: boxesSubset, probabilities: IndicesOperations.getForIndices(arr: probabilities, indices: MfArray(indicesPerClass)), thresold: config.c.NMS_THRESH)
       for i in 0..<keep.count {
         if keep[i] {
+          let prob = probs[indicesPerClass[i]].toArray()[0] as! Double
           result.boxes.append(boxesSubset[i])
-          result.probabilities.append(probabilities[indicesPerClass[i]])
+          result.probabilities.append(Float(prob))
           result.classIndexes.append(classIdxInIteration)
         }
       }
@@ -174,7 +177,7 @@ struct ModelPostProcessor {
       .reshape([config.anchorsCount])
       .sigmoid()
     
-    let predictionBoxDelta = predictionsMatrix[0~<, 0~<, confidenceScoresCount~<predictionsMatrix[1].size]
+    let predictionBoxDelta = predictionsMatrix[0~<, 0~<, confidenceScoresCount~<predictionsMatrix[2].size]
       .reshape([config.anchorsCount, 4])
     
     return SlicedPredictions(probabilities: predictionProbabilities, confidence: predictionConfidence, boxesDelta: predictionBoxDelta)
@@ -248,7 +251,9 @@ extension MfArray {
   }
   
   func sigmoid() -> MfArray {
-    return 1 / (1 + Matft.math.exp(-self))
+    let negative = -1.0 * self
+    let expp = Matft.math.exp(negative)
+    return 1.0 / (1.0 + expp)
   }
   
   func safeExp(threshold: Float) -> MfArray {

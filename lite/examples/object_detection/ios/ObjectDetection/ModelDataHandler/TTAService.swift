@@ -8,6 +8,39 @@
 
 import Foundation
 import CoreImage
+import UIKit
+
+protocol BoxTransformationProvider {
+  func transform(box: PredictionBoxes) -> PredictionBoxes?
+}
+
+struct BoxTransformation: BoxTransformationProvider {
+  func transform(box: PredictionBoxes) -> PredictionBoxes? {
+    return nil
+  }
+}
+
+struct TTATransform {
+  init(boxTransformationProvider: BoxTransformationProvider, transform: CGAffineTransform, reversedTransform: CGAffineTransform) {
+    self.boxTransformationProvider = boxTransformationProvider
+    self.transform = transform
+    self.reversedTransform = reversedTransform
+  }
+  
+  public let boxTransformationProvider: BoxTransformationProvider
+  public let transform: CGAffineTransform
+  public let reversedTransform: CGAffineTransform
+}
+
+struct TTAPrediction {
+  init(prediction: PredictionBoxes, ttaTransform: TTATransform) {
+    self.prediction = prediction
+    self.ttaTransform = ttaTransform
+  }
+  
+  public let prediction: PredictionBoxes
+  public let ttaTransform: TTATransform
+}
 
 struct TTAService {
   private let HorizontalFlipTransform: CGAffineTransform = CGAffineTransform(scaleX: -1, y: 1)
@@ -16,34 +49,107 @@ struct TTAService {
   private let NegativeRevScaleTransform: CGAffineTransform = CGAffineTransform(scaleX: -0.1667, y: -0.1667)
   private let PositiveRevScaleTransform: CGAffineTransform = CGAffineTransform(scaleX: 0.25, y: 0.25)
   
+  private let predictionInvoker: PredictionInvoker
+  private let postProcessor: ModelPostProcessor
   
-  func findBestPrediction(forImage: CVPixelBuffer, withPrediction: PredictionBoxes) -> PredictionBoxes? {
-    let img = CIImage(cvPixelBuffer: forImage)
-    img.transformed(by: transformations()[0])
-    let ctx = CIContext()
-    ctx.render(img, to: forImage)
+  init(predictionInvoker: PredictionInvoker, postProcessor: ModelPostProcessor) {
+    self.predictionInvoker = predictionInvoker
+    self.postProcessor = postProcessor
+  }
+  
+  
+  func findBetterPrediction(forImage: CVPixelBuffer, withPrediction: PredictionBoxes) -> PredictionBoxes? {
+    let predictions: [TTAPrediction] = transformations()
+      .map { transfrom in
+        // let uiimage = UIImage(ciImage: CIImage(cvPixelBuffer: forImage))
+        let transformedBuffer = processImageAfterTransformation(transform: transfrom.transform, imagePixelBuffer: forImage)
+        
+        // let uiimage2 = UIImage(ciImage: CIImage(cvPixelBuffer: transformedBuffer))
+        guard let out = predictionInvoker.invoke(scaledPixelBuffer: transformedBuffer) else {
+          return nil
+        }
+        guard let prediction = postProcessor.invoke(modelOut: out) else {
+          return nil
+        }
+        
+        return TTAPrediction(prediction: prediction, ttaTransform: transfrom)
+      }
+      .compactMap{ $0 }
     
+    var bestPrediction: PredictionBoxes? = nil
+    var ttaTransform: TTATransform!
+    predictions.forEach { p in
+      let predictionScore = calculateScoresAverage(scores: p.prediction.probabilities)
+      let bestPredictionScore = calculateScoresAverage(scores: (bestPrediction != nil ? bestPrediction! : withPrediction).probabilities)
+      if predictionScore > bestPredictionScore {
+        bestPrediction = p.prediction
+        ttaTransform = p.ttaTransform
+      }
+    }
+    if let newBestPrediction = bestPrediction {
+      
+    }
     return nil
   }
   
-  private func transformations() -> [CGAffineTransform] {
+  private func processImageAfterTransformation(transform: CGAffineTransform, imagePixelBuffer: CVPixelBuffer) -> CVPixelBuffer {
+    var pxBuffer: CVPixelBuffer!
+    let pxBufferResult = CVPixelBufferCreate(nil, CVPixelBufferGetWidth(imagePixelBuffer), CVPixelBufferGetHeight(imagePixelBuffer), CVPixelBufferGetPixelFormatType(imagePixelBuffer), nil, &pxBuffer)
+    assert(pxBufferResult == kCVReturnSuccess);
+    
+    let img = CIImage(cvPixelBuffer: imagePixelBuffer)
+    
+    let halfImageWidth = CGFloat(CVPixelBufferGetWidth(imagePixelBuffer) / 2)
+    let halfImageHeight = CGFloat(CVPixelBufferGetHeight(imagePixelBuffer) / 2)
+    
+    let transformation = CGAffineTransform(translationX: -halfImageWidth, y: -halfImageHeight)
+      .concatenating(transform)
+      .concatenating(CGAffineTransform(translationX: halfImageWidth, y: halfImageHeight))
+    let transformedImg = img.transformed(by: transformation)
+    let ctx = CIContext()
+    ctx.render(transformedImg, to: pxBuffer)
+    return pxBuffer
+  }
+  
+  private func transformations() -> [TTATransform] {
     return [
-      HorizontalFlipTransform,
-      NegativeScaleTransform,
-      HorizontalFlipTransform.concatenating(NegativeScaleTransform),
-      PositiveScaleTransform,
-      HorizontalFlipTransform.concatenating(PositiveScaleTransform)
+      TTATransform(
+        boxTransformationProvider: BoxTransformation(),
+        transform: HorizontalFlipTransform,
+        reversedTransform: HorizontalFlipTransform
+      ),
+      TTATransform(
+        boxTransformationProvider: BoxTransformation(),
+        transform: NegativeScaleTransform,
+        reversedTransform: PositiveRevScaleTransform
+      ),
+      TTATransform(
+        boxTransformationProvider: BoxTransformation(),
+        transform: HorizontalFlipTransform.concatenating(NegativeScaleTransform),
+        reversedTransform: PositiveRevScaleTransform.concatenating(HorizontalFlipTransform)
+      ),
+      TTATransform(
+        boxTransformationProvider: BoxTransformation(),
+        transform: PositiveScaleTransform,
+        reversedTransform: NegativeRevScaleTransform
+      ),
+      TTATransform(
+        boxTransformationProvider: BoxTransformation(),
+        transform: HorizontalFlipTransform.concatenating(PositiveScaleTransform),
+        reversedTransform: NegativeRevScaleTransform.concatenating(HorizontalFlipTransform)
+      )
     ]
   }
   
-  private func reversedTransformations() -> [CGAffineTransform] {
-    return [
-      HorizontalFlipTransform,
-      PositiveRevScaleTransform,
-      PositiveRevScaleTransform.concatenating(HorizontalFlipTransform),
-      NegativeRevScaleTransform,
-      NegativeRevScaleTransform.concatenating(HorizontalFlipTransform)
-    ]
+  private func calculateScoresAverage(scores: [Float]) -> Float {
+    if (scores.count == 0) {
+      return 0.0
+    }
+    
+    let sum = scores.reduce(0.0) { r, v in
+      return r + v
+    }
+    return sum / Float(scores.count)
   }
   
 }

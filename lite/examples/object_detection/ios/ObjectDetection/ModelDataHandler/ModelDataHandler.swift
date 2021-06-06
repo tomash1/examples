@@ -47,6 +47,8 @@ class ModelDataHandler: NSObject {
   
   // MARK: - Internal Properties
   /// The current thread count used by the TensorFlow Lite Interpreter.
+  let ttaEnabled = true
+  
   let threadCount: Int
   let threadCountLimit = 10
   
@@ -105,7 +107,7 @@ class ModelDataHandler: NSObject {
   /// This class handles all data preprocessing and makes calls to run inference on a given frame
   /// through the `Interpreter`. It then formats the inferences obtained and returns the top N
   /// results for a successful inference.
-  func runModel(onFrame pixelBuffer: CVPixelBuffer) -> Result? {
+  func runModel(onFrame pixelBuffer: CVPixelBuffer, continuesDetection: Bool) -> Result? {
     let imageWidth = CVPixelBufferGetWidth(pixelBuffer)
     let imageHeight = CVPixelBufferGetHeight(pixelBuffer)
     let sourcePixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
@@ -130,14 +132,20 @@ class ModelDataHandler: NSObject {
     }
     
     var inferences: [Inference] = []
-    if var prediction = postProcess.invoke(outData: [Float](unsafeData: modelOut.data) ?? []) {
-      prediction.boxes = prediction.boxes
-        .map { box in
-          return postProcess.mapBestPredictionBox(box: box)
-        }
-        .compactMap{ $0 }
-      inferences = piResultToTensorExample(pred: prediction, imageWidth: imageWidth, imageHeight: imageHeight)
+    guard let prediction = postProcess.invoke(modelOut: modelOut) else {
+      return nil
     }
+    var bestPrediction = prediction
+    if ttaEnabled && !continuesDetection {
+      let ttaService = TTAService(predictionInvoker: predictionInvoker, postProcessor: postProcess)
+      if let foundPrediction = ttaService.findBetterPrediction(forImage: scaledPixelBuffer, withPrediction: prediction) {
+        bestPrediction = foundPrediction
+      }
+    }
+    
+    bestPrediction = rearrangeBoxes(onPrediction: bestPrediction)
+    inferences = piResultToApplication(pred: bestPrediction, imageWidth: imageWidth, imageHeight: imageHeight)
+
     let interval: TimeInterval = Date().timeIntervalSince(startDate) * 1000
     
     // Returns the inference time and inferences
@@ -145,26 +153,36 @@ class ModelDataHandler: NSObject {
     return result
   }
   
-  func piResultToTensorExample(pred: PredictionBoxes, imageWidth: Int, imageHeight: Int) -> [Inference] {
+  func rearrangeBoxes(onPrediction: PredictionBoxes) -> PredictionBoxes {
+    var pred = onPrediction
+    pred.boxes = pred.boxes
+      .map { box in
+        return postProcess.mapBestPredictionBox(box: box)
+      }
+      .compactMap{ $0 }
+    return pred
+  }
+  
+  func piResultToApplication(pred: PredictionBoxes, imageWidth: Int, imageHeight: Int) -> [Inference] {
     // let imageArea = 480 * 480
     var result: [Inference] = []
     
     for i in 0..<pred.boxes.count {
       let box = pred.boxes[i].toArray() as! [Int]
       let label = "TO DO"
-      let score = pred.probabilities[i].toArray()[0] as! Float
+      let score = pred.probabilities[i]
       var rect = CGRect.zero
       rect.origin.x = CGFloat(box[0])
       rect.origin.y = CGFloat(box[1])
       rect.size.height = CGFloat(box[3]) - rect.origin.y
       rect.size.width = CGFloat(box[2]) - rect.origin.x
       
-      //let newRect = rect.applying(CGAffineTransform(scaleX: CGFloat(imageWidth), y: CGFloat(imageHeight)))
+      let newRect = rect.applying(CGAffineTransform(scaleX: CGFloat(1.0 / 480.0), y: CGFloat(1.0 / 480.0)).concatenating(CGAffineTransform(scaleX: CGFloat(imageWidth), y: CGFloat(imageHeight))))
       
       result.append(Inference(
                       confidence: score,
                       className: label,
-                      rect: rect,
+                      rect: newRect,
                       displayColor: .red)
       )
     }
@@ -244,7 +262,7 @@ extension Data {
   }
 }
 
-extension Array {
+public extension Array {
   /// Creates a new array from the bytes of the given unsafe data.
   ///
   /// - Warning: The array's `Element` type must be trivial in that it can be copied bit for bit

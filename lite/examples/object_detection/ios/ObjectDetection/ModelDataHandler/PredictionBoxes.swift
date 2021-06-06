@@ -11,10 +11,10 @@ import Matft
 
 struct PredictionBoxes {
   public var boxes: [MfArray]
-  public var probabilities: [MfArray]
+  public var probabilities: [Float]
   public var classIndexes: [Int]
   
-  init(boxes: [MfArray], probabilities: [MfArray], classIndexes: [Int]) {
+  init(boxes: [MfArray], probabilities: [Float], classIndexes: [Int]) {
     self.boxes = boxes
     self.probabilities = probabilities
     self.classIndexes = classIndexes

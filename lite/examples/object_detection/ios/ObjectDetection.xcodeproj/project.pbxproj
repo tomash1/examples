@@ -17,6 +17,10 @@
 		3FC210A026699AAA00EAC460 /* PredictionBoxes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FC2109F26699AAA00EAC460 /* PredictionBoxes.swift */; };
 		3FC210A4266A1AC600EAC460 /* TTAService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FC210A3266A1AC600EAC460 /* TTAService.swift */; };
 		3FC210A6266A2AED00EAC460 /* PredictionInvoker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FC210A5266A2AED00EAC460 /* PredictionInvoker.swift */; };
+		3FC210AA266A48C900EAC460 /* image2.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 3FC210A9266A48C900EAC460 /* image2.jpg */; };
+		3FE8016D266D4E410095BFE1 /* UIViewExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FE8016C266D4E410095BFE1 /* UIViewExtension.swift */; };
+		3FE8016F266D660E0095BFE1 /* ResultsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FE8016E266D660E0095BFE1 /* ResultsViewController.swift */; };
+		3FE80171266D7B240095BFE1 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FE80170266D7B240095BFE1 /* MainViewController.swift */; };
 		73E71CACD0A3B2F3F231DCBD /* Pods_ObjectDetection.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7DB9BD7C8BFE6B9F50310BBF /* Pods_ObjectDetection.framework */; };
 		AA055D8921622F3E00B25948 /* labelmap.txt in Resources */ = {isa = PBXBuildFile; fileRef = AA055D8821622F3E00B25948 /* labelmap.txt */; };
 		AA119EA2217F337300DE46CF /* ModelDataHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA119EA1217F337300DE46CF /* ModelDataHandler.swift */; };
@@ -47,6 +51,10 @@
 		3FC2109F26699AAA00EAC460 /* PredictionBoxes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PredictionBoxes.swift; sourceTree = "<group>"; };
 		3FC210A3266A1AC600EAC460 /* TTAService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TTAService.swift; sourceTree = "<group>"; };
 		3FC210A5266A2AED00EAC460 /* PredictionInvoker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PredictionInvoker.swift; sourceTree = "<group>"; };
+		3FC210A9266A48C900EAC460 /* image2.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = image2.jpg; sourceTree = "<group>"; };
+		3FE8016C266D4E410095BFE1 /* UIViewExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIViewExtension.swift; sourceTree = "<group>"; };
+		3FE8016E266D660E0095BFE1 /* ResultsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultsViewController.swift; sourceTree = "<group>"; };
+		3FE80170266D7B240095BFE1 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
 		7DB9BD7C8BFE6B9F50310BBF /* Pods_ObjectDetection.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_ObjectDetection.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA055D8821622F3E00B25948 /* labelmap.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = labelmap.txt; sourceTree = "<group>"; };
 		AA119EA1217F337300DE46CF /* ModelDataHandler.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ModelDataHandler.swift; sourceTree = "<group>"; };
@@ -85,6 +93,7 @@
 		AA09263B212D730700D5890F /* Model */ = {
 			isa = PBXGroup;
 			children = (
+				3FC210A9266A48C900EAC460 /* image2.jpg */,
 				3F9917A32665651B007C5F92 /* image2.png */,
 				3F9917A626656520007C5F92 /* model_float16.tflite */,
 				3F9917A42665651E007C5F92 /* model.tflite */,
@@ -108,6 +117,7 @@
 				AAAB096F2189838A0015A1F2 /* CVPixelBufferExtension.swift */,
 				AAC58494214797E800FB532F /* StringExtension.swift */,
 				AAEF3D8C21A2BE2B0073AE1C /* UIColorExtension.swift */,
+				3FE8016C266D4E410095BFE1 /* UIViewExtension.swift */,
 			);
 			path = Extensions;
 			sourceTree = "<group>";
@@ -163,6 +173,8 @@
 			children = (
 				AA16E59C218081AA00D9E153 /* InferenceViewController.swift */,
 				AA9AC5E1212D4520000B4E9D /* ViewController.swift */,
+				3FE8016E266D660E0095BFE1 /* ResultsViewController.swift */,
+				3FE80170266D7B240095BFE1 /* MainViewController.swift */,
 			);
 			path = ViewControllers;
 			sourceTree = "<group>";
@@ -273,6 +285,7 @@
 				AA9AC5A9212D39FD000B4E9D /* LaunchScreen.storyboard in Resources */,
 				3F9917A726656520007C5F92 /* image2.png in Resources */,
 				3F9917A926656520007C5F92 /* squeeze.config in Resources */,
+				3FC210AA266A48C900EAC460 /* image2.jpg in Resources */,
 				AA9AC5A6212D39FD000B4E9D /* Assets.xcassets in Resources */,
 				AA9AC5A4212D39FC000B4E9D /* Main.storyboard in Resources */,
 				3F9917AA26656520007C5F92 /* model_float16.tflite in Resources */,
@@ -346,9 +359,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3FE80171266D7B240095BFE1 /* MainViewController.swift in Sources */,
 				AA9AC5E2212D4520000B4E9D /* ViewController.swift in Sources */,
 				AA756E6A2150CE89004BB0BC /* OverlayView.swift in Sources */,
 				AA119EA2217F337300DE46CF /* ModelDataHandler.swift in Sources */,
+				3FE8016F266D660E0095BFE1 /* ResultsViewController.swift in Sources */,
 				AAC58495214797E800FB532F /* StringExtension.swift in Sources */,
 				AA756E652150C996004BB0BC /* CameraFeedManager.swift in Sources */,
 				3FC210A6266A2AED00EAC460 /* PredictionInvoker.swift in Sources */,
@@ -359,6 +374,7 @@
 				3F9917AC26657BB4007C5F92 /* ModelPostProcessor.swift in Sources */,
 				AAEF3D8D21A2BE2B0073AE1C /* UIColorExtension.swift in Sources */,
 				AA9AC59F212D39FC000B4E9D /* AppDelegate.swift in Sources */,
+				3FE8016D266D4E410095BFE1 /* UIViewExtension.swift in Sources */,
 				AA9AC5D7212D43E0000B4E9D /* PreviewView.swift in Sources */,
 				3FC210A026699AAA00EAC460 /* PredictionBoxes.swift in Sources */,
 				AA16E59B21807BAC00D9E153 /* InfoCell.swift in Sources */,
@@ -440,7 +456,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 11.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
@@ -495,7 +511,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 11.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
