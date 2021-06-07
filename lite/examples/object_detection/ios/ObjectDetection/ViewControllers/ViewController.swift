@@ -13,8 +13,9 @@
 // limitations under the License.
 
 import UIKit
+import CoreLocation
 
-class ViewController: UIViewController {
+class ViewController: UIViewController, CLLocationManagerDelegate {
   
   // MARK: Storyboards Connections
   @IBOutlet weak var previewView: PreviewView!
@@ -41,9 +42,13 @@ class ViewController: UIViewController {
   private var continuesDetection: Bool = false
   private var shooterClicked: Bool = false
   private var resultImage: UIImage? = nil
+  private var frameImage: UIImage? = nil
   
   // MARK: Instance Variables
   private var initialBottomSpace: CGFloat = 0.0
+  private let locationManager: CLLocationManager = CLLocationManager()
+  
+  private var location: CLLocation? = nil
   
   // Holds the results at any time
   private var result: Result?
@@ -75,7 +80,16 @@ class ViewController: UIViewController {
   
   override func viewWillAppear(_ animated: Bool) {
     super.viewWillAppear(animated)
-    changeBottomViewState()
+    locationManager.delegate = self
+    
+    locationManager.requestWhenInUseAuthorization()
+    locationManager.startUpdatingLocation()
+    
+    restartUI()
+    
+    if resultImage == nil {
+      changeBottomViewState()
+    }
     cameraFeedManager.checkCameraConfigurationAndStartSession()
   }
   
@@ -124,6 +138,32 @@ class ViewController: UIViewController {
     self.continuesDetectionButton.isHidden = true
   }
   
+  private func restartUI() {
+    self.shooterClicked = false
+    self.continuesDetection = false
+    self.generatingResultsLabel.isHidden = true
+    self.activityIndicator.isHidden = true
+    self.shooterButton.isHidden = false
+    self.continuesDetectionButton.isHidden = false
+    
+    self.draw(objectOverlays: [])
+  }
+  
+  func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+    locationManager.stopUpdatingLocation()
+    if let location = locations.first {
+      self.location = location
+//      if let _ = resultImage {
+//        performSegue(withIdentifier: "ResultsShowSegue", sender: nil)
+//      }
+    }
+  }
+  
+  func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+      // Handle failure to get a user’s location
+    print("Location error \(error.localizedDescription)")
+  }
+  
   func presentUnableToResumeSessionAlert() {
     let alert = UIAlertController(
       title: "Unable to Resume Session",
@@ -163,8 +203,16 @@ class ViewController: UIViewController {
       guard let tempImage = resultImage else {
         return
       }
+      guard let loc = location else {
+        return
+      }
       
       resultsViewController?.resultImage = tempImage
+      resultsViewController?.frameImage = frameImage
+      resultsViewController?.latitude = loc.coordinate.latitude
+      resultsViewController?.longitude = loc.coordinate.longitude
+      resultsViewController?.inferenceTime = result?.inferenceTime
+      resultsViewController?.dangerDegree = result?.inferences[0].className.replacingOccurrences(of: "Danger: ", with: "")
     }
   }
 }
@@ -301,7 +349,7 @@ extension ViewController: CameraFeedManagerDelegate {
       
       if (self.shooterClicked) {
         self.drawAfterPerformingCalculations(onInferences: displayResult.inferences, withImageSize: CGSize(width: CGFloat(width), height: CGFloat(height)))
-        self.generateImageToSendAndShowItToUser(pixelBuffer: pixelBuffer)
+        self.generateImageToSendAndShowItToUser(pixelBuffer: pixelBuffer, scaledPixelBuffer: displayResult.scaledBuffer)
       } else {
       
         var inferenceTime: Double = 0
@@ -377,13 +425,16 @@ extension ViewController: CameraFeedManagerDelegate {
     self.overlayView.setNeedsDisplay()
   }
   
-  func generateImageToSendAndShowItToUser(pixelBuffer: CVPixelBuffer) {
-    let previewImage = pixelBuffer.asImage()
+  func generateImageToSendAndShowItToUser(pixelBuffer: CVPixelBuffer, scaledPixelBuffer: CVPixelBuffer) {
+    let previewImage = scaledPixelBuffer.asImage()
     let overlayImage = self.overlayView.asImage()
     
+    self.frameImage = pixelBuffer.asImage()
     self.resultImage = previewImage.overlayWith(image: overlayImage, posX: 0, posY: 0)
     
-    performSegue(withIdentifier: "ResultsShowSegue", sender: nil)
+    if let _ = location {
+      performSegue(withIdentifier: "ResultsShowSegue", sender: nil)
+    }
   }
   
 }

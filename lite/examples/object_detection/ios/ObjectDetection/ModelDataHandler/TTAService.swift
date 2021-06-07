@@ -10,16 +10,6 @@ import Foundation
 import CoreImage
 import UIKit
 
-protocol BoxTransformationProvider {
-  func transform(box: PredictionBoxes) -> PredictionBoxes?
-}
-
-struct BoxTransformation: BoxTransformationProvider {
-  func transform(box: PredictionBoxes) -> PredictionBoxes? {
-    return nil
-  }
-}
-
 struct TTATransform {
   init(boxTransformationProvider: BoxTransformationProvider, transform: CGAffineTransform, reversedTransform: CGAffineTransform) {
     self.boxTransformationProvider = boxTransformationProvider
@@ -76,19 +66,19 @@ struct TTAService {
       }
       .compactMap{ $0 }
     
-    var bestPrediction: PredictionBoxes? = nil
-    var ttaTransform: TTATransform!
-    predictions.forEach { p in
-      let predictionScore = calculateScoresAverage(scores: p.prediction.probabilities)
-      let bestPredictionScore = calculateScoresAverage(scores: (bestPrediction != nil ? bestPrediction! : withPrediction).probabilities)
-      if predictionScore > bestPredictionScore {
-        bestPrediction = p.prediction
-        ttaTransform = p.ttaTransform
-      }
-    }
-    if let newBestPrediction = bestPrediction {
-      
-    }
+//    var bestPrediction: PredictionBoxes? = nil
+//    var ttaTransform: TTATransform!
+//    predictions.forEach { p in
+//      let predictionScore = calculateScoresAverage(scores: p.prediction.probabilities)
+//      let bestPredictionScore = calculateScoresAverage(scores: (bestPrediction != nil ? bestPrediction! : withPrediction).probabilities)
+//      if true {
+//        bestPrediction = p.prediction
+//        ttaTransform = p.ttaTransform
+//      }
+//    }
+//    if let newBestPrediction = bestPrediction {
+//      return ttaTransform.boxTransformationProvider.transform(box: newBestPrediction)
+//    }
     return nil
   }
   
@@ -114,30 +104,30 @@ struct TTAService {
   private func transformations() -> [TTATransform] {
     return [
       TTATransform(
-        boxTransformationProvider: BoxTransformation(),
+        boxTransformationProvider: HorizontalBoxTransformation(),
         transform: HorizontalFlipTransform,
         reversedTransform: HorizontalFlipTransform
       ),
-      TTATransform(
-        boxTransformationProvider: BoxTransformation(),
-        transform: NegativeScaleTransform,
-        reversedTransform: PositiveRevScaleTransform
-      ),
-      TTATransform(
-        boxTransformationProvider: BoxTransformation(),
-        transform: HorizontalFlipTransform.concatenating(NegativeScaleTransform),
-        reversedTransform: PositiveRevScaleTransform.concatenating(HorizontalFlipTransform)
-      ),
-      TTATransform(
-        boxTransformationProvider: BoxTransformation(),
-        transform: PositiveScaleTransform,
-        reversedTransform: NegativeRevScaleTransform
-      ),
-      TTATransform(
-        boxTransformationProvider: BoxTransformation(),
-        transform: HorizontalFlipTransform.concatenating(PositiveScaleTransform),
-        reversedTransform: NegativeRevScaleTransform.concatenating(HorizontalFlipTransform)
-      )
+//      TTATransform(
+//        boxTransformationProvider: BoxTransformation(),
+//        transform: NegativeScaleTransform,
+//        reversedTransform: PositiveRevScaleTransform
+//      ),
+//      TTATransform(
+//        boxTransformationProvider: BoxTransformation(),
+//        transform: HorizontalFlipTransform.concatenating(NegativeScaleTransform),
+//        reversedTransform: PositiveRevScaleTransform.concatenating(HorizontalFlipTransform)
+//      ),
+//      TTATransform(
+//        boxTransformationProvider: BoxTransformation(),
+//        transform: PositiveScaleTransform,
+//        reversedTransform: NegativeRevScaleTransform
+//      ),
+//      TTATransform(
+//        boxTransformationProvider: BoxTransformation(),
+//        transform: HorizontalFlipTransform.concatenating(PositiveScaleTransform),
+//        reversedTransform: NegativeRevScaleTransform.concatenating(HorizontalFlipTransform)
+//      )
     ]
   }
   

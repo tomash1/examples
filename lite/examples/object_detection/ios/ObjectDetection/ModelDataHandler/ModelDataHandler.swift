@@ -16,11 +16,13 @@ import CoreImage
 import TensorFlowLite
 import UIKit
 import Accelerate
+import AVKit
 
 /// Stores results for a particular frame that was successfully run through the `Interpreter`.
 struct Result {
   let inferenceTime: Double
   let inferences: [Inference]
+  let scaledBuffer: CVPixelBuffer
 }
 
 /// Stores one formatted inference.
@@ -29,6 +31,11 @@ struct Inference {
   let className: String
   let rect: CGRect
   let displayColor: UIColor
+}
+
+struct RecLabel {
+  let label: String
+  let color: UIColor
 }
 
 /// Information about a model file or labels file.
@@ -66,6 +73,14 @@ class ModelDataHandler: NSObject {
   
   private let bgraPixel = (channels: 4, alphaComponent: 3, lastBgrComponent: 2)
   private let rgbPixelChannels = 3
+  private let dangerLevels = [
+    0: RecLabel(label: "Danger: Very Low", color: .green),
+    1: RecLabel(label: "Danger: Low", color: .green),
+    2: RecLabel(label: "Danger: Medium", color: .orange),
+    3: RecLabel(label: "Danger: High", color: .orange),
+    4: RecLabel(label: "Danger: Very High", color: .red),
+    5: RecLabel(label: "Danger: Extreme", color: .red),
+  ]
   
   // MARK: - Initialization
   
@@ -121,8 +136,11 @@ class ModelDataHandler: NSObject {
     assert(imageChannels >= predictionInvoker.inputChannels)
     
     // Crops the image to the biggest square in the center and scales it down to model dimensions.
+    let videoRect = CGRect(x: 0, y: 0, width: imageWidth, height: imageHeight)
     let scaledSize = CGSize(width: inputWidth, height: inputHeight)
-    guard let scaledPixelBuffer = pixelBuffer.resized(to: scaledSize) else {
+    
+    let centerCroppingRect = AVMakeRect(aspectRatio: scaledSize, insideRect: videoRect)
+    guard let scaledPixelBuffer = pixelBuffer.resized(to: scaledSize, croppingRect: centerCroppingRect) else {
       return nil
     }
     
@@ -149,7 +167,7 @@ class ModelDataHandler: NSObject {
     let interval: TimeInterval = Date().timeIntervalSince(startDate) * 1000
     
     // Returns the inference time and inferences
-    let result = Result(inferenceTime: interval, inferences: inferences)
+    let result = Result(inferenceTime: interval, inferences: inferences, scaledBuffer: scaledPixelBuffer)
     return result
   }
   
@@ -164,12 +182,12 @@ class ModelDataHandler: NSObject {
   }
   
   func piResultToApplication(pred: PredictionBoxes, imageWidth: Int, imageHeight: Int) -> [Inference] {
-    // let imageArea = 480 * 480
+    let imageArea = 480 * 480
     var result: [Inference] = []
     
     for i in 0..<pred.boxes.count {
       let box = pred.boxes[i].toArray() as! [Int]
-      let label = "TO DO"
+      let label = createRecognitionLabel(imageArea: imageArea, objectClass: pred.classIndexes[i], box: box)
       let score = pred.probabilities[i]
       var rect = CGRect.zero
       rect.origin.x = CGFloat(box[0])
@@ -181,12 +199,39 @@ class ModelDataHandler: NSObject {
       
       result.append(Inference(
                       confidence: score,
-                      className: label,
+                      className: label.label,
                       rect: newRect,
-                      displayColor: .red)
+                      displayColor: label.color)
       )
     }
     return result
+  }
+  
+  private func createRecognitionLabel(imageArea: Int, objectClass: Int, box: [Int]) -> RecLabel {
+    let objectArea = ( box[2] - box[0] ) * ( box[3] - box[1] )
+    let areaRatio = Float(objectArea) / Float(imageArea)
+    let dangerLevel = getDangerLevel(objectClass: objectClass, areaRatio: areaRatio)
+    return dangerLevels[dangerLevel]!
+  }
+  
+  private func getDangerLevel(objectClass: Int, areaRatio: Float) -> Int {
+    var dangerLevel: Int!
+    if objectClass == 0 {
+      dangerLevel = 1
+      if areaRatio < 0.015 {
+        dangerLevel -= 1
+      } else if areaRatio > 0.04 {
+        dangerLevel += 1
+      }
+    } else {
+      dangerLevel = 4
+      if areaRatio < 0.035 {
+        dangerLevel -= 1
+      } else if areaRatio > 0.095 {
+        dangerLevel += 1
+      }
+    }
+    return dangerLevel
   }
   
   /// Filters out all the results with confidence score < threshold and returns the top N results

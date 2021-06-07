@@ -8,5 +8,6 @@ target 'ObjectDetection' do
   # Pods for ObjectDetection
   pod 'TensorFlowLiteSwift'
   pod 'Matft'
+  pod 'SwiftyRequest', '~> 2.2'
 
 end

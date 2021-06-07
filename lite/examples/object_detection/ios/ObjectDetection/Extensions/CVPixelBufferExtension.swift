@@ -20,7 +20,7 @@ import Accelerate
 extension CVPixelBuffer {
   /// Returns thumbnail by cropping pixel buffer to biggest square and scaling the cropped image
   /// to model dimensions.
-  func resized(to size: CGSize ) -> CVPixelBuffer? {
+  func resized(to size: CGSize, croppingRect:CGRect? = nil) -> CVPixelBuffer? {
 
     let imageWidth = CVPixelBufferGetWidth(self)
     let imageHeight = CVPixelBufferGetHeight(self)
@@ -47,7 +47,16 @@ extension CVPixelBuffer {
     guard  let scaledImageBytes = malloc(Int(size.height) * scaledImageRowBytes) else {
       return nil
     }
-
+    
+    if let cropRect = croppingRect {
+      let offset: Int = Int(cropRect.minY * CGFloat(inputImageRowBytes) + cropRect.minX * 4);
+      inputVImageBuffer = vImage_Buffer(
+        data: inputBaseAddress + offset,
+        height: UInt(cropRect.height),
+        width: UInt(cropRect.width),
+        rowBytes: inputImageRowBytes
+      )
+    }
     // Allocates a vImage buffer for scaled image.
     var scaledVImageBuffer = vImage_Buffer(data: scaledImageBytes, height: UInt(size.height), width: UInt(size.width), rowBytes: scaledImageRowBytes)
 
