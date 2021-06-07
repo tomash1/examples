@@ -23,8 +23,12 @@ struct SlicedPredictions {
   }
 }
 
+protocol PostProcessor {
+  func invoke(modelOut: Tensor) -> Any?
+}
 
-struct ModelPostProcessor {
+
+struct ModelPostProcessor: PostProcessor {
   private static let PredMatrixShape: [Int] = [1, 14400, 7]
   
   private let config: SqueezeConfigWithAnchors?
@@ -55,7 +59,7 @@ struct ModelPostProcessor {
     return nil
   }
   
-  func invoke(modelOut: Tensor) -> PredictionBoxes? {
+  func invoke(modelOut: Tensor) -> Any? {
     let outData = [Float](unsafeData: modelOut.data) ?? []
     
     guard let config = self.config else {

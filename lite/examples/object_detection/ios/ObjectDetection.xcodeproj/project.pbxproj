@@ -24,6 +24,8 @@
 		3FE80173266D92270095BFE1 /* BoxTransformationProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FE80172266D92270095BFE1 /* BoxTransformationProvider.swift */; };
 		3FE80176266E2D770095BFE1 /* HttpService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FE80175266E2D770095BFE1 /* HttpService.swift */; };
 		3FE80178266E2DB60095BFE1 /* SmokeModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FE80177266E2DB60095BFE1 /* SmokeModel.swift */; };
+		3FE80180266EC04A0095BFE1 /* fuel_classification_model.tflite in Resources */ = {isa = PBXBuildFile; fileRef = 3FE8017F266EC04A0095BFE1 /* fuel_classification_model.tflite */; };
+		3FE80182266EC3680095BFE1 /* FuelPostProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FE80181266EC3680095BFE1 /* FuelPostProcessor.swift */; };
 		73E71CACD0A3B2F3F231DCBD /* Pods_ObjectDetection.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7DB9BD7C8BFE6B9F50310BBF /* Pods_ObjectDetection.framework */; };
 		AA055D8921622F3E00B25948 /* labelmap.txt in Resources */ = {isa = PBXBuildFile; fileRef = AA055D8821622F3E00B25948 /* labelmap.txt */; };
 		AA119EA2217F337300DE46CF /* ModelDataHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA119EA1217F337300DE46CF /* ModelDataHandler.swift */; };
@@ -61,6 +63,8 @@
 		3FE80172266D92270095BFE1 /* BoxTransformationProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxTransformationProvider.swift; sourceTree = "<group>"; };
 		3FE80175266E2D770095BFE1 /* HttpService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HttpService.swift; sourceTree = "<group>"; };
 		3FE80177266E2DB60095BFE1 /* SmokeModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokeModel.swift; sourceTree = "<group>"; };
+		3FE8017F266EC04A0095BFE1 /* fuel_classification_model.tflite */ = {isa = PBXFileReference; lastKnownFileType = file; path = fuel_classification_model.tflite; sourceTree = "<group>"; };
+		3FE80181266EC3680095BFE1 /* FuelPostProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FuelPostProcessor.swift; sourceTree = "<group>"; };
 		7DB9BD7C8BFE6B9F50310BBF /* Pods_ObjectDetection.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_ObjectDetection.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA055D8821622F3E00B25948 /* labelmap.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = labelmap.txt; sourceTree = "<group>"; };
 		AA119EA1217F337300DE46CF /* ModelDataHandler.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ModelDataHandler.swift; sourceTree = "<group>"; };
@@ -108,6 +112,7 @@
 		AA09263B212D730700D5890F /* Model */ = {
 			isa = PBXGroup;
 			children = (
+				3FE8017F266EC04A0095BFE1 /* fuel_classification_model.tflite */,
 				3FC210A9266A48C900EAC460 /* image2.jpg */,
 				3F9917A32665651B007C5F92 /* image2.png */,
 				3F9917A626656520007C5F92 /* model_float16.tflite */,
@@ -215,6 +220,7 @@
 				3FC210A3266A1AC600EAC460 /* TTAService.swift */,
 				3FC210A5266A2AED00EAC460 /* PredictionInvoker.swift */,
 				3FE80172266D92270095BFE1 /* BoxTransformationProvider.swift */,
+				3FE80181266EC3680095BFE1 /* FuelPostProcessor.swift */,
 			);
 			path = ModelDataHandler;
 			sourceTree = "<group>";
@@ -298,6 +304,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3FE80180266EC04A0095BFE1 /* fuel_classification_model.tflite in Resources */,
 				3F9917A826656520007C5F92 /* model.tflite in Resources */,
 				AA9AC5A9212D39FD000B4E9D /* LaunchScreen.storyboard in Resources */,
 				3F9917A726656520007C5F92 /* image2.png in Resources */,
@@ -388,6 +395,7 @@
 				AAAB09702189838A0015A1F2 /* CVPixelBufferExtension.swift in Sources */,
 				3FE80173266D92270095BFE1 /* BoxTransformationProvider.swift in Sources */,
 				3FC2109E26696E9300EAC460 /* IndicesOperations.swift in Sources */,
+				3FE80182266EC3680095BFE1 /* FuelPostProcessor.swift in Sources */,
 				3F9917AE26658124007C5F92 /* SqueezeConfig.swift in Sources */,
 				3FC210A4266A1AC600EAC460 /* TTAService.swift in Sources */,
 				3F9917AC26657BB4007C5F92 /* ModelPostProcessor.swift in Sources */,

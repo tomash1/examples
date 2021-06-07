@@ -20,6 +20,7 @@ import AVKit
 
 /// Stores results for a particular frame that was successfully run through the `Interpreter`.
 struct Result {
+  var label: String? = nil
   let inferenceTime: Double
   let inferences: [Inference]
   let scaledBuffer: CVPixelBuffer
@@ -41,10 +42,14 @@ struct RecLabel {
 /// Information about a model file or labels file.
 typealias FileInfo = (name: String, extension: String)
 
-/// Information about the MobileNet SSD model.
-enum MobileNetSSD {
+/// Information about the SmokeDetection model.
+enum SmokeDetection {
   static let modelInfo: FileInfo = (name: "model_float16", extension: "tflite")
-  static let labelsInfo: FileInfo = (name: "labelmap", extension: "txt")
+}
+
+/// Information about the FuelDetection model.
+enum FuelDetection {
+  static let modelInfo: FileInfo = (name: "fuel_classification_model", extension: "tflite")
 }
 
 /// This class handles all data preprocessing and makes calls to run inference on a given frame
@@ -54,22 +59,29 @@ class ModelDataHandler: NSObject {
   
   // MARK: - Internal Properties
   /// The current thread count used by the TensorFlow Lite Interpreter.
-  let ttaEnabled = true
+  public let ttaEnabled = true
+  public var postProcess: PostProcessor
+  public let modelFile: FileInfo
+  
+  public var isSmokeDetectionModel: Bool {
+    get {
+      return modelFile.name == SmokeDetection.modelInfo.name
+    }
+  }
   
   let threadCount: Int
   let threadCountLimit = 10
   
   let threshold: Float = 0.5
   
-  let inputWidth = 480
-  let inputHeight = 480
+  let inputWidth: Int!
+  let inputHeight: Int!
   
   // MARK: Private properties
   private var labels: [String] = []
   
   /// TensorFlow Lite `Interpreter` object for performing inference on a given model.
   private var interpreter: Interpreter
-  private var postProcess: ModelPostProcessor
   
   private let bgraPixel = (channels: 4, alphaComponent: 3, lastBgrComponent: 2)
   private let rgbPixelChannels = 3
@@ -86,7 +98,12 @@ class ModelDataHandler: NSObject {
   
   /// A failable initializer for `ModelDataHandler`. A new instance is created if the model and
   /// labels files are successfully loaded from the app's main bundle. Default `threadCount` is 1.
-  init?(modelFileInfo: FileInfo, labelsFileInfo: FileInfo, threadCount: Int = 1) {
+  init?(modelFileInfo: FileInfo, postProcessor: PostProcessor, threadCount: Int = 1, inputWidth: Int, inputHeight: Int) {
+    self.modelFile = modelFileInfo
+    self.inputWidth = inputWidth
+    self.inputHeight = inputHeight
+    self.postProcess = postProcessor
+    
     let modelFilename = modelFileInfo.name
     
     // Construct the path to the model file.
@@ -111,8 +128,6 @@ class ModelDataHandler: NSObject {
       print("Failed to create the interpreter with error: \(error.localizedDescription)")
       return nil
     }
-    
-    postProcess = ModelPostProcessor()
     super.init()
     
     // Load the classes listed in the labels file.
@@ -149,13 +164,27 @@ class ModelDataHandler: NSObject {
       return nil
     }
     
+    //TODO this needs refactor !!!
+    if isSmokeDetectionModel {
+      return self.getResultForSmokeDetection(modelOut, scaledPixelBuffer: scaledPixelBuffer, predictionInvoker: predictionInvoker, continuesDetection: continuesDetection, startDate: startDate, imageHeight: imageHeight, imageWidth: imageWidth)
+    } else {
+      guard let result = postProcess.invoke(modelOut: modelOut) as! String? else {
+        return nil
+      }
+      
+      let interval: TimeInterval = Date().timeIntervalSince(startDate) * 1000
+      return Result(label: result, inferenceTime: interval, inferences: [], scaledBuffer: scaledPixelBuffer)
+    }
+  }
+  
+  private func getResultForSmokeDetection(_ modelOut: Tensor, scaledPixelBuffer: CVPixelBuffer, predictionInvoker: PredictionInvoker, continuesDetection: Bool, startDate: Date, imageHeight: Int, imageWidth: Int) -> Result? {
     var inferences: [Inference] = []
-    guard let prediction = postProcess.invoke(modelOut: modelOut) else {
+    guard let prediction = postProcess.invoke(modelOut: modelOut) as! PredictionBoxes? else {
       return nil
     }
     var bestPrediction = prediction
     if ttaEnabled && !continuesDetection {
-      let ttaService = TTAService(predictionInvoker: predictionInvoker, postProcessor: postProcess)
+      let ttaService = TTAService(predictionInvoker: predictionInvoker, postProcessor: postProcess as! ModelPostProcessor)
       if let foundPrediction = ttaService.findBetterPrediction(forImage: scaledPixelBuffer, withPrediction: prediction) {
         bestPrediction = foundPrediction
       }
@@ -163,19 +192,17 @@ class ModelDataHandler: NSObject {
     
     bestPrediction = rearrangeBoxes(onPrediction: bestPrediction)
     inferences = piResultToApplication(pred: bestPrediction, imageWidth: imageWidth, imageHeight: imageHeight)
-
-    let interval: TimeInterval = Date().timeIntervalSince(startDate) * 1000
     
+    let interval: TimeInterval = Date().timeIntervalSince(startDate) * 1000
     // Returns the inference time and inferences
-    let result = Result(inferenceTime: interval, inferences: inferences, scaledBuffer: scaledPixelBuffer)
-    return result
+    return Result(inferenceTime: interval, inferences: inferences, scaledBuffer: scaledPixelBuffer)
   }
   
   func rearrangeBoxes(onPrediction: PredictionBoxes) -> PredictionBoxes {
     var pred = onPrediction
     pred.boxes = pred.boxes
       .map { box in
-        return postProcess.mapBestPredictionBox(box: box)
+        return (postProcess as! ModelPostProcessor).mapBestPredictionBox(box: box)
       }
       .compactMap{ $0 }
     return pred
@@ -195,8 +222,8 @@ class ModelDataHandler: NSObject {
       rect.size.height = CGFloat(box[3]) - rect.origin.y
       rect.size.width = CGFloat(box[2]) - rect.origin.x
       
-      let newRect = rect.applying(CGAffineTransform(scaleX: CGFloat(1.0 / 480.0), y: CGFloat(1.0 / 480.0)).concatenating(CGAffineTransform(scaleX: CGFloat(imageWidth), y: CGFloat(imageHeight))))
-      
+      var newRect = rect.applying(CGAffineTransform(scaleX: CGFloat(1.0 / 480.0), y: CGFloat(1.0 / 480.0)).concatenating(CGAffineTransform(scaleX: CGFloat(imageWidth), y: CGFloat(imageWidth))))
+      newRect.origin.y +=  420 // 420 move from top to detection rect start
       result.append(Inference(
                       confidence: score,
                       className: label.label,

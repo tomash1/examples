@@ -25,6 +25,7 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
   @IBOutlet weak var shooterButton: UIButton!
   @IBOutlet weak var cameraUnavailableLabel: UILabel!
   @IBOutlet weak var generatingResultsLabel: UILabel!
+  @IBOutlet weak var fuelClassificationLabel: UILabel!
   
   @IBOutlet weak var bottomSheetStateImageView: UIImageView!
   @IBOutlet weak var bottomSheetView: UIView!
@@ -56,9 +57,20 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
   
   // MARK: Controllers that manage functionality
   private lazy var cameraFeedManager = CameraFeedManager(previewView: previewView)
-  private var modelDataHandler: ModelDataHandler? =
-    ModelDataHandler(modelFileInfo: MobileNetSSD.modelInfo, labelsFileInfo: MobileNetSSD.labelsInfo)
+  
+  private var selectedDataHandler: ModelDataHandler?
+  public var modelDataHandler: ModelDataHandler? {
+    get {
+      return selectedDataHandler
+    }
+    set {
+      selectedDataHandler = newValue
+      isSmokeDetection = selectedDataHandler?.isSmokeDetectionModel
+    }
+  }
+  
   private var inferenceViewController: InferenceViewController?
+  private var isSmokeDetection: Bool!
   
   // MARK: View Handling Methods
   override func viewDidLoad() {
@@ -84,6 +96,12 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
     
     locationManager.requestWhenInUseAuthorization()
     locationManager.startUpdatingLocation()
+    
+    if isSmokeDetection {
+      fuelClassificationLabel.isHidden = true
+    } else {
+      fuelClassificationLabel.isHidden = false
+    }
     
     restartUI()
     
@@ -145,6 +163,7 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
     self.activityIndicator.isHidden = true
     self.shooterButton.isHidden = false
     self.continuesDetectionButton.isHidden = false
+    self.continuesDetectionButton.isSelected = false
     
     self.draw(objectOverlays: [])
   }
@@ -153,9 +172,6 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
     locationManager.stopUpdatingLocation()
     if let location = locations.first {
       self.location = location
-//      if let _ = resultImage {
-//        performSegue(withIdentifier: "ResultsShowSegue", sender: nil)
-//      }
     }
   }
   
@@ -223,9 +239,11 @@ extension ViewController: InferenceViewControllerDelegate {
   func didChangeThreadCount(to count: Int) {
     if modelDataHandler?.threadCount == count { return }
     modelDataHandler = ModelDataHandler(
-      modelFileInfo: MobileNetSSD.modelInfo,
-      labelsFileInfo: MobileNetSSD.labelsInfo,
-      threadCount: count
+      modelFileInfo: modelDataHandler!.modelFile,
+      postProcessor: modelDataHandler!.postProcess,
+      threadCount: count,
+      inputWidth: modelDataHandler!.inputWidth,
+      inputHeight: modelDataHandler!.inputHeight
     )
   }
   
@@ -347,9 +365,13 @@ extension ViewController: CameraFeedManagerDelegate {
       // Display results by handing off to the InferenceViewController
       self.inferenceViewController?.resolution = CGSize(width: width, height: height)
       
-      if (self.shooterClicked) {
-        self.drawAfterPerformingCalculations(onInferences: displayResult.inferences, withImageSize: CGSize(width: CGFloat(width), height: CGFloat(height)))
-        self.generateImageToSendAndShowItToUser(pixelBuffer: pixelBuffer, scaledPixelBuffer: displayResult.scaledBuffer)
+      if (self.shooterClicked && !self.continuesDetection) {
+        if self.isSmokeDetection {
+          self.drawAfterPerformingCalculations(onInferences: displayResult.inferences, withImageSize: CGSize(width: CGFloat(width), height: CGFloat(height)))
+          self.generateImageToSendAndShowItToUser(pixelBuffer: pixelBuffer, scaledPixelBuffer: displayResult.scaledBuffer)
+        } else {
+          self.setFuelClassificationlabel(label: displayResult.label)
+        }
       } else {
       
         var inferenceTime: Double = 0
@@ -359,9 +381,19 @@ extension ViewController: CameraFeedManagerDelegate {
         self.inferenceViewController?.inferenceTime = inferenceTime
         self.inferenceViewController?.tableView.reloadData()
         
-        // Draws the bounding boxes and displays class names and confidence scores.
-        self.drawAfterPerformingCalculations(onInferences: displayResult.inferences, withImageSize: CGSize(width: CGFloat(width), height: CGFloat(height)))
+        if self.isSmokeDetection {
+          // Draws the bounding boxes and displays class names and confidence scores.
+          self.drawAfterPerformingCalculations(onInferences: displayResult.inferences, withImageSize: CGSize(width: CGFloat(width), height: CGFloat(height)))
+        } else {
+          self.setFuelClassificationlabel(label: displayResult.label)
+        }
       }
+    }
+  }
+  
+  private func setFuelClassificationlabel(label: String?) {
+    if let text = label {
+      self.fuelClassificationLabel.text = text
     }
   }
   
@@ -427,10 +459,16 @@ extension ViewController: CameraFeedManagerDelegate {
   
   func generateImageToSendAndShowItToUser(pixelBuffer: CVPixelBuffer, scaledPixelBuffer: CVPixelBuffer) {
     let previewImage = scaledPixelBuffer.asImage()
-    let overlayImage = self.overlayView.asImage()
+    var overlayImage = self.overlayView.asImage()
+    // match size of camera preview for which overlay is generated
+    let resizedOverlay = overlayImage.resizeImage(targetSize: CGSize(width: 1080, height: 1920))
+    guard let cropped = resizedOverlay.cgImage?.cropping(to: CGRect(x: 0, y: 420, width: 1080, height: 1080)) else {
+      return
+    }
+    overlayImage = UIImage(cgImage: cropped).resizeImage(targetSize: previewImage.size)
     
     self.frameImage = pixelBuffer.asImage()
-    self.resultImage = previewImage.overlayWith(image: overlayImage, posX: 0, posY: 0)
+    self.resultImage = previewImage.overlayWith(image: overlayImage, posX: 0, posY: 0).resizeImage(targetSize: CGSize(width: 480, height: 480))
     
     if let _ = location {
       performSegue(withIdentifier: "ResultsShowSegue", sender: nil)
@@ -594,4 +632,27 @@ extension UIImage {
 
       return newImage
     }
+  
+  func resizeImage(targetSize: CGSize) -> UIImage {
+      let size = self.size
+
+      let widthRatio  = targetSize.width  / size.width
+      let heightRatio = targetSize.height / size.height
+
+      var newSize: CGSize
+      if(widthRatio > heightRatio) {
+          newSize = CGSize(width: size.width * heightRatio, height: size.height * heightRatio)
+      } else {
+          newSize = CGSize(width: size.width * widthRatio, height: size.height *      widthRatio)
+      }
+
+      let rect = CGRect(x: 0, y: 0, width: newSize.width, height: newSize.height)
+
+      UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
+      self.draw(in: rect)
+      let newImage = UIGraphicsGetImageFromCurrentImageContext()
+      UIGraphicsEndImageContext()
+
+      return newImage!
+  }
 }

@@ -30,7 +30,7 @@
                                 <color key="textColor" name="MainColor"/>
                                 <nil key="highlightedColor"/>
                             </label>
-                            <button opaque="NO" contentMode="scaleToFill" enabled="NO" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="ev5-cg-Uf0">
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="ev5-cg-Uf0">
                                 <rect key="frame" x="16" y="547" width="343" height="50"/>
                                 <color key="backgroundColor" name="ButtonColor"/>
                                 <constraints>
@@ -41,6 +41,9 @@
                                 <state key="normal" title="Verify Fuel">
                                     <color key="titleColor" name="MainColor"/>
                                 </state>
+                                <connections>
+                                    <segue destination="B43-t1-Ft8" kind="show" identifier="VerifyFuelSegue" id="jf0-2x-o7q"/>
+                                </connections>
                             </button>
                             <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="fxm-3J-ce4">
                                 <rect key="frame" x="16" y="473" width="343" height="50"/>
@@ -54,7 +57,7 @@
                                     <color key="titleColor" name="MainColor"/>
                                 </state>
                                 <connections>
-                                    <segue destination="B43-t1-Ft8" kind="show" id="Ura-w5-fB2"/>
+                                    <segue destination="B43-t1-Ft8" kind="show" identifier="VerifySmokeSegue" id="Ura-w5-fB2"/>
                                 </connections>
                             </button>
                         </subviews>
@@ -97,10 +100,23 @@
                                 <color key="backgroundColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                             </view>
                             <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="tyX-XX-qft" customClass="OverlayView" customModule="ObjectDetection" customModuleProvider="target">
-                                <rect key="frame" x="0.0" y="136" width="375" height="375"/>
+                                <rect key="frame" x="0.0" y="56" width="375" height="591"/>
+                                <subviews>
+                                    <label hidden="YES" opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Fuel Classification" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="D0M-Bw-ENn">
+                                        <rect key="frame" x="8" y="8" width="359" height="21"/>
+                                        <constraints>
+                                            <constraint firstAttribute="height" constant="21" id="e4H-Gc-F4z"/>
+                                        </constraints>
+                                        <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                        <color key="textColor" name="MainColor"/>
+                                        <nil key="highlightedColor"/>
+                                    </label>
+                                </subviews>
                                 <color key="backgroundColor" white="1" alpha="0.0" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                 <constraints>
-                                    <constraint firstAttribute="height" constant="375" id="UZe-8L-bsa"/>
+                                    <constraint firstItem="D0M-Bw-ENn" firstAttribute="leading" secondItem="tyX-XX-qft" secondAttribute="leading" constant="8" id="BjC-Fs-qGz"/>
+                                    <constraint firstAttribute="trailing" secondItem="D0M-Bw-ENn" secondAttribute="trailing" constant="8" id="EJ3-EE-cVF"/>
+                                    <constraint firstItem="D0M-Bw-ENn" firstAttribute="top" secondItem="tyX-XX-qft" secondAttribute="top" constant="8" id="c9g-lA-6zK"/>
                                 </constraints>
                             </view>
                             <label hidden="YES" opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Generating results..." textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="H17-4P-bxI">
@@ -122,7 +138,7 @@
                                 <color key="color" name="MainColor"/>
                             </activityIndicatorView>
                             <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="fill" contentVerticalAlignment="fill" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="bli-62-Xgg">
-                                <rect key="frame" x="147.5" y="520" width="80" height="75"/>
+                                <rect key="frame" x="147.5" y="510" width="80" height="75"/>
                                 <constraints>
                                     <constraint firstAttribute="height" constant="75" id="bcf-dA-chK"/>
                                     <constraint firstAttribute="width" constant="80" id="fWr-Ji-SiL"/>
@@ -194,21 +210,22 @@
                             <constraint firstItem="6Tk-OE-BBY" firstAttribute="trailing" secondItem="jhC-YW-J6Q" secondAttribute="trailing" id="83W-Qu-4uJ"/>
                             <constraint firstItem="LAO-dO-grc" firstAttribute="centerY" secondItem="6Tk-OE-BBY" secondAttribute="centerY" constant="-40" id="FEO-rc-Vc3"/>
                             <constraint firstItem="ro1-YL-L1d" firstAttribute="leading" secondItem="8bC-Xf-vdC" secondAttribute="leading" id="G8h-dz-zgv"/>
-                            <constraint firstItem="6Tk-OE-BBY" firstAttribute="bottom" secondItem="bli-62-Xgg" secondAttribute="bottom" constant="52" id="H3a-CF-Y0h"/>
                             <constraint firstItem="f4A-Xn-PZD" firstAttribute="top" secondItem="H17-4P-bxI" secondAttribute="bottom" constant="10" id="Iw9-Hg-yON"/>
                             <constraint firstItem="bli-62-Xgg" firstAttribute="centerX" secondItem="8bC-Xf-vdC" secondAttribute="centerX" id="JNf-id-ERG"/>
                             <constraint firstItem="f4A-Xn-PZD" firstAttribute="centerX" secondItem="8bC-Xf-vdC" secondAttribute="centerX" id="Mcm-EA-hcI"/>
                             <constraint firstItem="0vh-Hu-Nap" firstAttribute="centerX" secondItem="LAO-dO-grc" secondAttribute="centerX" id="OyR-JO-lnp"/>
                             <constraint firstAttribute="bottom" secondItem="ro1-YL-L1d" secondAttribute="bottom" id="Pt9-ax-F66"/>
                             <constraint firstItem="6Tk-OE-BBY" firstAttribute="trailing" secondItem="LAO-dO-grc" secondAttribute="trailing" constant="20" id="SqP-RR-Lae"/>
+                            <constraint firstItem="tyX-XX-qft" firstAttribute="bottom" secondItem="jhC-YW-J6Q" secondAttribute="bottom" id="TuZ-2N-dI5"/>
                             <constraint firstItem="tyX-XX-qft" firstAttribute="trailing" secondItem="6Tk-OE-BBY" secondAttribute="trailing" id="U2X-71-7oc"/>
                             <constraint firstItem="H17-4P-bxI" firstAttribute="centerX" secondItem="8bC-Xf-vdC" secondAttribute="centerX" id="WD1-hB-9SN"/>
                             <constraint firstItem="6Tk-OE-BBY" firstAttribute="bottom" secondItem="jhC-YW-J6Q" secondAttribute="bottom" id="WOf-3d-YjE"/>
                             <constraint firstItem="jhC-YW-J6Q" firstAttribute="top" secondItem="6Tk-OE-BBY" secondAttribute="top" id="X8h-iK-TdO"/>
+                            <constraint firstItem="6Tk-OE-BBY" firstAttribute="bottom" secondItem="bli-62-Xgg" secondAttribute="bottom" constant="62" id="bLg-ui-UD4"/>
                             <constraint firstItem="LAO-dO-grc" firstAttribute="leading" secondItem="6Tk-OE-BBY" secondAttribute="leading" constant="20" id="byg-sW-1q4"/>
                             <constraint firstItem="0vh-Hu-Nap" firstAttribute="top" secondItem="LAO-dO-grc" secondAttribute="bottom" constant="5" id="cqs-kM-ItJ"/>
                             <constraint firstItem="jhC-YW-J6Q" firstAttribute="leading" secondItem="6Tk-OE-BBY" secondAttribute="leading" id="g3H-D2-exL"/>
-                            <constraint firstItem="tyX-XX-qft" firstAttribute="centerY" secondItem="8bC-Xf-vdC" secondAttribute="centerY" id="gBQ-dg-5b7"/>
+                            <constraint firstItem="tyX-XX-qft" firstAttribute="top" secondItem="jhC-YW-J6Q" secondAttribute="top" id="i6F-Ml-12A"/>
                             <constraint firstItem="6Tk-OE-BBY" firstAttribute="bottom" secondItem="f4A-Xn-PZD" secondAttribute="bottom" constant="92" id="oMw-0u-EVY"/>
                             <constraint firstAttribute="trailing" secondItem="ro1-YL-L1d" secondAttribute="trailing" id="oNX-Pa-cBX"/>
                             <constraint firstItem="tyX-XX-qft" firstAttribute="leading" secondItem="6Tk-OE-BBY" secondAttribute="leading" id="zPn-dL-tLE"/>
@@ -230,7 +247,7 @@
                             </button>
                         </barButtonItem>
                         <barButtonItem key="rightBarButtonItem" style="plain" id="P8p-eG-v44">
-                            <button key="customView" opaque="NO" contentMode="scaleToFill" ambiguous="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" id="GQV-jd-cGb">
+                            <button key="customView" opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" id="GQV-jd-cGb">
                                 <rect key="frame" x="302" y="11.5" width="57" height="33"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <constraints>
@@ -254,6 +271,7 @@
                         <outlet property="bottomSheetViewBottomSpace" destination="Pt9-ax-F66" id="VIm-Zg-hkb"/>
                         <outlet property="cameraUnavailableLabel" destination="LAO-dO-grc" id="3qR-EM-aQ5"/>
                         <outlet property="continuesDetectionButton" destination="WWt-qI-jxI" id="fsp-Uq-OH1"/>
+                        <outlet property="fuelClassificationLabel" destination="D0M-Bw-ENn" id="lg6-at-j5O"/>
                         <outlet property="generatingResultsLabel" destination="H17-4P-bxI" id="hdN-J9-g6X"/>
                         <outlet property="overlayView" destination="tyX-XX-qft" id="h55-V9-Wep"/>
                         <outlet property="previewView" destination="jhC-YW-J6Q" id="tyJ-nv-oXG"/>
@@ -522,6 +540,9 @@
             <point key="canvasLocation" x="2536.8000000000002" y="-260.41979010494754"/>
         </scene>
     </scenes>
+    <inferredMetricsTieBreakers>
+        <segue reference="jf0-2x-o7q"/>
+    </inferredMetricsTieBreakers>
     <resources>
         <image name="AppBackground" width="414" height="736"/>
         <image name="camera.circle.fill" catalog="system" width="128" height="121"/>

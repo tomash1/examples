@@ -58,7 +58,7 @@ struct TTAService {
         guard let out = predictionInvoker.invoke(scaledPixelBuffer: transformedBuffer) else {
           return nil
         }
-        guard let prediction = postProcessor.invoke(modelOut: out) else {
+        guard let prediction = postProcessor.invoke(modelOut: out) as! PredictionBoxes? else {
           return nil
         }
         
