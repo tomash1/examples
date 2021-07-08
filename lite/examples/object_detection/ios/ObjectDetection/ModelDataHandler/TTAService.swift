@@ -11,13 +11,13 @@ import CoreImage
 import UIKit
 
 struct TTATransform {
-  init(boxTransformationProvider: BoxTransformationProvider, transform: CGAffineTransform, reversedTransform: CGAffineTransform) {
-    self.boxTransformationProvider = boxTransformationProvider
+  init(boxTransformationProviders: [BoxTransformationProvider], transform: CGAffineTransform, reversedTransform: CGAffineTransform) {
+    self.boxTransformationProviders = boxTransformationProviders
     self.transform = transform
     self.reversedTransform = reversedTransform
   }
   
-  public let boxTransformationProvider: BoxTransformationProvider
+  public let boxTransformationProviders: [BoxTransformationProvider]
   public let transform: CGAffineTransform
   public let reversedTransform: CGAffineTransform
 }
@@ -34,10 +34,10 @@ struct TTAPrediction {
 
 struct TTAService {
   private let HorizontalFlipTransform: CGAffineTransform = CGAffineTransform(scaleX: -1, y: 1)
-  private let NegativeScaleTransform: CGAffineTransform = CGAffineTransform(scaleX: -0.2, y: -0.2)
-  private let PositiveScaleTransform: CGAffineTransform = CGAffineTransform(scaleX: 0.2, y: 0.2)
-  private let NegativeRevScaleTransform: CGAffineTransform = CGAffineTransform(scaleX: -0.1667, y: -0.1667)
-  private let PositiveRevScaleTransform: CGAffineTransform = CGAffineTransform(scaleX: 0.25, y: 0.25)
+  private let NegativeScaleTransform: CGAffineTransform = CGAffineTransform(scaleX: -0.2 + 1, y: -0.2 + 1)
+  private let PositiveScaleTransform: CGAffineTransform = CGAffineTransform(scaleX: 0.2 + 1, y: 0.2 + 1)
+  private let NegativeRevScaleTransform: CGAffineTransform = CGAffineTransform(scaleX: -0.1667 + 1, y: -0.1667 + 1)
+  private let PositiveRevScaleTransform: CGAffineTransform = CGAffineTransform(scaleX: 0.25 + 1, y: 0.25 + 1)
   
   private let predictionInvoker: PredictionInvoker
   private let postProcessor: ModelPostProcessor
@@ -66,19 +66,25 @@ struct TTAService {
       }
       .compactMap{ $0 }
     
-//    var bestPrediction: PredictionBoxes? = nil
-//    var ttaTransform: TTATransform!
-//    predictions.forEach { p in
-//      let predictionScore = calculateScoresAverage(scores: p.prediction.probabilities)
-//      let bestPredictionScore = calculateScoresAverage(scores: (bestPrediction != nil ? bestPrediction! : withPrediction).probabilities)
-//      if true {
-//        bestPrediction = p.prediction
-//        ttaTransform = p.ttaTransform
-//      }
-//    }
-//    if let newBestPrediction = bestPrediction {
-//      return ttaTransform.boxTransformationProvider.transform(box: newBestPrediction)
-//    }
+    var bestPrediction: PredictionBoxes? = nil
+    var ttaTransform: TTATransform!
+    predictions.forEach { p in
+      let predictionScore = calculateScoresAverage(scores: p.prediction.probabilities)
+      let bestPredictionScore = calculateScoresAverage(scores: (bestPrediction != nil ? bestPrediction! : withPrediction).probabilities)
+      if predictionScore > bestPredictionScore {
+        bestPrediction = p.prediction
+        ttaTransform = p.ttaTransform
+      }
+    }
+    if var newBestPrediction = bestPrediction {
+      ttaTransform.boxTransformationProviders.forEach { boxTransform in
+        if let transformed = boxTransform.transform(box: newBestPrediction) {
+          newBestPrediction = transformed
+          newBestPrediction.isAugmented = true
+        }
+      }
+      return newBestPrediction
+    }
     return nil
   }
   
@@ -104,30 +110,30 @@ struct TTAService {
   private func transformations() -> [TTATransform] {
     return [
       TTATransform(
-        boxTransformationProvider: HorizontalBoxTransformation(),
+        boxTransformationProviders: [HorizontalBoxTransformation()],
         transform: HorizontalFlipTransform,
         reversedTransform: HorizontalFlipTransform
       ),
-//      TTATransform(
-//        boxTransformationProvider: BoxTransformation(),
-//        transform: NegativeScaleTransform,
-//        reversedTransform: PositiveRevScaleTransform
-//      ),
-//      TTATransform(
-//        boxTransformationProvider: BoxTransformation(),
-//        transform: HorizontalFlipTransform.concatenating(NegativeScaleTransform),
-//        reversedTransform: PositiveRevScaleTransform.concatenating(HorizontalFlipTransform)
-//      ),
-//      TTATransform(
-//        boxTransformationProvider: BoxTransformation(),
-//        transform: PositiveScaleTransform,
-//        reversedTransform: NegativeRevScaleTransform
-//      ),
-//      TTATransform(
-//        boxTransformationProvider: BoxTransformation(),
-//        transform: HorizontalFlipTransform.concatenating(PositiveScaleTransform),
-//        reversedTransform: NegativeRevScaleTransform.concatenating(HorizontalFlipTransform)
-//      )
+      TTATransform(
+        boxTransformationProviders: [ScaleBoxTransformation(xScale: 0.25 + 1, yScale: 0.25 + 1)],
+        transform: NegativeScaleTransform,
+        reversedTransform: PositiveRevScaleTransform
+      ),
+      TTATransform(
+        boxTransformationProviders: [ScaleBoxTransformation(xScale: 0.25 + 1, yScale: 0.25 + 1), HorizontalBoxTransformation()],
+        transform: HorizontalFlipTransform.concatenating(NegativeScaleTransform),
+        reversedTransform: PositiveRevScaleTransform.concatenating(HorizontalFlipTransform)
+      ),
+      TTATransform(
+        boxTransformationProviders: [ScaleBoxTransformation(xScale: -0.1667 + 1, yScale: -0.1667 + 1)],
+        transform: PositiveScaleTransform,
+        reversedTransform: NegativeRevScaleTransform
+      ),
+      TTATransform(
+        boxTransformationProviders: [ScaleBoxTransformation(xScale: -0.1667 + 1, yScale: -0.1667 + 1), HorizontalBoxTransformation()],
+        transform: HorizontalFlipTransform.concatenating(PositiveScaleTransform),
+        reversedTransform: NegativeRevScaleTransform.concatenating(HorizontalFlipTransform)
+      )
     ]
   }
   

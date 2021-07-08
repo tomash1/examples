@@ -15,6 +15,28 @@
 import UIKit
 import CoreLocation
 
+public class DetectionRunning {
+
+    private let lock = DispatchSemaphore(value: 1)
+    private var value = false
+
+    // You need to lock on the value when reading it too since
+    // there are no volatile variables in Swift as of today.
+    public func get() -> Bool {
+
+        lock.wait()
+        defer { lock.signal() }
+        return value
+    }
+
+    public func set(_ newValue: Bool) {
+
+        lock.wait()
+        defer { lock.signal() }
+        value = newValue
+    }
+}
+
 class ViewController: UIViewController, CLLocationManagerDelegate {
   
   // MARK: Storyboards Connections
@@ -41,9 +63,15 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
   private let expandTransitionThreshold: CGFloat = 30.0
   private let delayBetweenInferencesMs: Double = 200
   private var continuesDetection: Bool = false
+  private var wasContinuesSelected: Bool = false
   private var shooterClicked: Bool = false
   private var resultImage: UIImage? = nil
   private var frameImage: UIImage? = nil
+  private var isTTAEnabled: Bool = true
+  private var threshold: Double = 0.6
+  private var restoreContinuesDetection: Bool = false
+  private var isDetectionRunning: DetectionRunning = DetectionRunning()
+  // private var continuesDetectionDisabled: DetectionRunning = DetectionRunning()
   
   // MARK: Instance Variables
   private var initialBottomSpace: CGFloat = 0.0
@@ -83,6 +111,11 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
     overlayView.clearsContextBeforeDrawing = true
     
     addPanGesture()
+    
+    shooterButton.isHidden = !isSmokeDetection
+    fuelClassificationLabel.isHidden = isSmokeDetection
+    continuesDetection = !isSmokeDetection
+    continuesDetectionButton.isHidden = !isSmokeDetection
   }
   
   override func didReceiveMemoryWarning() {
@@ -97,16 +130,10 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
     locationManager.requestWhenInUseAuthorization()
     locationManager.startUpdatingLocation()
     
-    if isSmokeDetection {
-      fuelClassificationLabel.isHidden = true
-    } else {
-      fuelClassificationLabel.isHidden = false
-    }
-    
-    restartUI()
-    
     if resultImage == nil {
       changeBottomViewState()
+    } else {
+      restartUI()
     }
     cameraFeedManager.checkCameraConfigurationAndStartSession()
   }
@@ -143,12 +170,23 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
   @IBAction func continuesDetectionButton(sender: AnyObject) {
     self.continuesDetection = !self.continuesDetection
     self.continuesDetectionButton.isSelected = self.continuesDetection
+    self.restoreContinuesDetection = continuesDetection
+    self.wasContinuesSelected = continuesDetectionButton.isSelected
+    
+//    if !continuesDetection {
+//      continuesDetectionDisabled.set(true)
+//    } else if continuesDetectionDisabled.get() {
+//      continuesDetectionDisabled.set(false)
+//    }
+    
+    self.inferenceViewController?.changeTTAButtonStateDueToContinuesDetection()
     
     self.draw(objectOverlays: [])
   }
   
   @IBAction func shooterButtonClicked(sender: AnyObject) {
     self.shooterClicked = true
+//    self.continuesDetectionDisabled.set(false)
     self.continuesDetection = true
     self.generatingResultsLabel.isHidden = false
     self.activityIndicator.isHidden = false
@@ -158,14 +196,23 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
   
   private func restartUI() {
     self.shooterClicked = false
-    self.continuesDetection = false
+    self.continuesDetection = self.restoreContinuesDetection
     self.generatingResultsLabel.isHidden = true
     self.activityIndicator.isHidden = true
     self.shooterButton.isHidden = false
     self.continuesDetectionButton.isHidden = false
-    self.continuesDetectionButton.isSelected = false
+    self.continuesDetectionButton.isSelected = self.continuesDetection
+    
+    if continuesDetection {
+      DispatchQueue.main.asyncAfter(deadline: .now() + (isTTAEnabled ? 1.0 : 2.0)) {
+        self.isDetectionRunning.set(false)
+      }
+    } else {
+      isDetectionRunning.set(false)
+    }
     
     self.draw(objectOverlays: [])
+    cameraFeedManager.checkCameraConfigurationAndStartSession()
   }
   
   func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
@@ -224,11 +271,19 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
       }
       
       resultsViewController?.resultImage = tempImage
-      resultsViewController?.frameImage = frameImage
-      resultsViewController?.latitude = loc.coordinate.latitude
-      resultsViewController?.longitude = loc.coordinate.longitude
-      resultsViewController?.inferenceTime = result?.inferenceTime
-      resultsViewController?.dangerDegree = result?.inferences[0].className.replacingOccurrences(of: "Danger: ", with: "")
+      if let detectionCount = result?.inferences.count {
+        if detectionCount > 0 {
+          resultsViewController?.foundResults = true
+          resultsViewController?.frameImage = frameImage
+          resultsViewController?.frameImage = frameImage
+          resultsViewController?.latitude = loc.coordinate.latitude
+          resultsViewController?.longitude = loc.coordinate.longitude
+          resultsViewController?.inferenceTime = result?.inferenceTime
+          resultsViewController?.threshold = threshold
+          resultsViewController?.ttaEnabled = isTTAEnabled ? "1" : "0"
+          resultsViewController?.dangerDegree = result?.inferences[0].className.replacingOccurrences(of: "Danger: ", with: "")
+        }
+      }
     }
   }
 }
@@ -245,6 +300,14 @@ extension ViewController: InferenceViewControllerDelegate {
       inputWidth: modelDataHandler!.inputWidth,
       inputHeight: modelDataHandler!.inputHeight
     )
+  }
+  
+  func didChangeTTAValue(to isEnabled: Bool) {
+    isTTAEnabled = isEnabled
+  }
+  
+  func didChangeThresholdValue(to value: Double) {
+    threshold = value
   }
   
 }
@@ -317,7 +380,10 @@ extension ViewController: CameraFeedManagerDelegate {
   /** This method runs the live camera pixelBuffer through tensorFlow to get the result.
    */
   @objc  func runModel(onPixelBuffer pixelBuffer: CVPixelBuffer) {
-    
+    if isDetectionRunning.get() {
+      return
+    }
+    isDetectionRunning.set(true)
     // Run the live camera pixelBuffer through tensorFlow to get the result
     
     let currentTimeMs = Date().timeIntervalSince1970 * 1000
@@ -328,6 +394,8 @@ extension ViewController: CameraFeedManagerDelegate {
     
     if (shooterClicked) { // we allow to click shooter only once
       continuesDetection = false
+      cameraFeedManager.stopSession()
+      wasContinuesSelected = continuesDetectionButton.isSelected
     }
     
 //    guard let url = Bundle.main.url(
@@ -351,7 +419,10 @@ extension ViewController: CameraFeedManagerDelegate {
 //    }
     
     previousInferenceTimeMs = currentTimeMs
-    result = self.modelDataHandler?.runModel(onFrame: pixelBuffer, continuesDetection: self.continuesDetection)
+    self.modelDataHandler?.threshold = Float(threshold)
+    self.modelDataHandler?.ttaEnabled = isTTAEnabled
+    
+    result = self.modelDataHandler?.runModel(onFrame: pixelBuffer)
     
     guard let displayResult = result else {
       return
@@ -365,7 +436,7 @@ extension ViewController: CameraFeedManagerDelegate {
       // Display results by handing off to the InferenceViewController
       self.inferenceViewController?.resolution = CGSize(width: width, height: height)
       
-      if (self.shooterClicked && !self.continuesDetection) {
+      if (self.shooterClicked || (self.continuesDetection && displayResult.inferences.count > 0)) {
         if self.isSmokeDetection {
           self.drawAfterPerformingCalculations(onInferences: displayResult.inferences, withImageSize: CGSize(width: CGFloat(width), height: CGFloat(height)))
           self.generateImageToSendAndShowItToUser(pixelBuffer: pixelBuffer, scaledPixelBuffer: displayResult.scaledBuffer)
@@ -373,7 +444,7 @@ extension ViewController: CameraFeedManagerDelegate {
           self.setFuelClassificationlabel(label: displayResult.label)
         }
       } else {
-      
+        self.isDetectionRunning.set(false)
         var inferenceTime: Double = 0
         if let resultInferenceTime = self.result?.inferenceTime {
           inferenceTime = resultInferenceTime
@@ -469,6 +540,11 @@ extension ViewController: CameraFeedManagerDelegate {
     
     self.frameImage = pixelBuffer.asImage()
     self.resultImage = previewImage.overlayWith(image: overlayImage, posX: 0, posY: 0).resizeImage(targetSize: CGSize(width: 480, height: 480))
+    guard self.continuesDetectionButton.isSelected == self.wasContinuesSelected else {
+      print("state differs")
+      draw(objectOverlays: [])
+      return
+    }
     
     if let _ = location {
       performSegue(withIdentifier: "ResultsShowSegue", sender: nil)

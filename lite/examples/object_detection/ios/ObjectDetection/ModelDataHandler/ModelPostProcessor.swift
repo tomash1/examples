@@ -44,7 +44,12 @@ struct ModelPostProcessor: PostProcessor {
   }
   
   func mapBestPredictionBox(box: MfArray) -> MfArray? {
-    if let pred = box.toArray() as? [Double] {
+    var boxArray = box.toArray()
+    if let pred = boxArray as? [Int] {
+      boxArray = pred.map { Double($0) }
+    }
+    
+    if let pred = boxArray as? [Double] {
       let cx = pred[0]
       let cy = pred[1]
       let w = pred[2]
@@ -96,7 +101,7 @@ struct ModelPostProcessor: PostProcessor {
     for classIdxInIteration in 0..<config.c.CLASSES {
       var indicesPerClass: [Int] = []
       for i in 0..<probs.count {
-        if let idx = cls_idx[i].toArray()[0] as? Int {
+        if let idx = cls_idx.data[i] as? Int {
           if (idx == classIdxInIteration) {
             indicesPerClass.append(i)
           }
@@ -105,11 +110,12 @@ struct ModelPostProcessor: PostProcessor {
       if (indicesPerClass.isEmpty) {
         continue
       }
-      let boxesSubset = IndicesOperations.getForIndices(arr: orderedBoxes, indices: MfArray(indicesPerClass))
-      let keep = nms(boxes: boxesSubset, probabilities: IndicesOperations.getForIndices(arr: probabilities, indices: MfArray(indicesPerClass)), thresold: config.c.NMS_THRESH)
+      let filterForPredictionClass = MfArray(indicesPerClass)
+      let boxesSubset = orderedBoxes[filterForPredictionClass]
+      let keep = nms(boxes: boxesSubset, probabilities: probabilities[filterForPredictionClass], thresold: config.c.NMS_THRESH)
       for i in 0..<keep.count {
         if keep[i] {
-          let prob = probs[indicesPerClass[i]].toArray()[0] as! Double
+          let prob = probs.data[indicesPerClass[i]] as! Double
           result.boxes.append(boxesSubset[i])
           result.probabilities.append(Float(prob))
           result.classIndexes.append(classIdxInIteration)
@@ -125,19 +131,17 @@ struct ModelPostProcessor: PostProcessor {
     order = order.reshape([order.count])
     
     var keep: [Bool] = Array.init(repeating: true, count: order.count)
-    let boxesSorted = IndicesOperations.getForIndices(arr: boxes, indices: order)
+    let boxesSorted = boxes[order]
     
     for i in 0..<order.count {
       let boxesSubset = boxesSorted[i+1~<order.count]
-      if let boxOrder = order[i].toArray()[0] as? Int {
-        let ovps = batchIOU(boxes: boxesSubset, box: boxes[boxOrder])
-        for j in 0..<ovps.count {
-          if let ovp = ovps[j].toArray()[0] as? Float {
-            if (ovp > thresold) {
-              let keepIndex = order[i + j + 1].toArray()[0] as! Int
-              keep[keepIndex] = false
-            }
-          }
+      let box = boxes[order.data[i]]
+      let ovps = batchIOU(boxes: boxesSubset, box: box)
+      for j in 0..<ovps.count {
+        let ovp = Float(ovps.data[j] as! Double)
+        if (ovp > thresold) {
+          let keepIndex = order.data[i + j + 1] as! Int
+          keep[keepIndex] = false
         }
       }
     }

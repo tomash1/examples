@@ -59,7 +59,8 @@ class ModelDataHandler: NSObject {
   
   // MARK: - Internal Properties
   /// The current thread count used by the TensorFlow Lite Interpreter.
-  public let ttaEnabled = true
+  public var ttaEnabled = true
+  public var threshold: Float = 0.6
   public var postProcess: PostProcessor
   public let modelFile: FileInfo
   
@@ -71,8 +72,6 @@ class ModelDataHandler: NSObject {
   
   let threadCount: Int
   let threadCountLimit = 10
-  
-  let threshold: Float = 0.5
   
   let inputWidth: Int!
   let inputHeight: Int!
@@ -98,7 +97,7 @@ class ModelDataHandler: NSObject {
   
   /// A failable initializer for `ModelDataHandler`. A new instance is created if the model and
   /// labels files are successfully loaded from the app's main bundle. Default `threadCount` is 1.
-  init?(modelFileInfo: FileInfo, postProcessor: PostProcessor, threadCount: Int = 1, inputWidth: Int, inputHeight: Int) {
+  init?(modelFileInfo: FileInfo, postProcessor: PostProcessor, threadCount: Int = 2, inputWidth: Int, inputHeight: Int) {
     self.modelFile = modelFileInfo
     self.inputWidth = inputWidth
     self.inputHeight = inputHeight
@@ -137,7 +136,7 @@ class ModelDataHandler: NSObject {
   /// This class handles all data preprocessing and makes calls to run inference on a given frame
   /// through the `Interpreter`. It then formats the inferences obtained and returns the top N
   /// results for a successful inference.
-  func runModel(onFrame pixelBuffer: CVPixelBuffer, continuesDetection: Bool) -> Result? {
+  func runModel(onFrame pixelBuffer: CVPixelBuffer) -> Result? {
     let imageWidth = CVPixelBufferGetWidth(pixelBuffer)
     let imageHeight = CVPixelBufferGetHeight(pixelBuffer)
     let sourcePixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
@@ -154,11 +153,14 @@ class ModelDataHandler: NSObject {
     let videoRect = CGRect(x: 0, y: 0, width: imageWidth, height: imageHeight)
     let scaledSize = CGSize(width: inputWidth, height: inputHeight)
     
-    let centerCroppingRect = AVMakeRect(aspectRatio: scaledSize, insideRect: videoRect)
-    guard let scaledPixelBuffer = pixelBuffer.resized(to: scaledSize, croppingRect: centerCroppingRect) else {
+    var croppingRect: CGRect? = nil
+    if isSmokeDetectionModel {
+      croppingRect = AVMakeRect(aspectRatio: scaledSize, insideRect: videoRect)
+    }
+    guard let scaledPixelBuffer = pixelBuffer.resized(to: scaledSize, croppingRect: croppingRect) else {
       return nil
     }
-    
+    //let img = UIImage(ciImage: CIImage(cvPixelBuffer: scaledPixelBuffer))
     let startDate = Date()
     guard let modelOut = predictionInvoker.invoke(scaledPixelBuffer: scaledPixelBuffer) else {
       return nil
@@ -166,7 +168,7 @@ class ModelDataHandler: NSObject {
     
     //TODO this needs refactor !!!
     if isSmokeDetectionModel {
-      return self.getResultForSmokeDetection(modelOut, scaledPixelBuffer: scaledPixelBuffer, predictionInvoker: predictionInvoker, continuesDetection: continuesDetection, startDate: startDate, imageHeight: imageHeight, imageWidth: imageWidth)
+      return self.getResultForSmokeDetection(modelOut, scaledPixelBuffer: scaledPixelBuffer, predictionInvoker: predictionInvoker, startDate: startDate, imageHeight: imageHeight, imageWidth: imageWidth)
     } else {
       guard let result = postProcess.invoke(modelOut: modelOut) as! String? else {
         return nil
@@ -177,13 +179,13 @@ class ModelDataHandler: NSObject {
     }
   }
   
-  private func getResultForSmokeDetection(_ modelOut: Tensor, scaledPixelBuffer: CVPixelBuffer, predictionInvoker: PredictionInvoker, continuesDetection: Bool, startDate: Date, imageHeight: Int, imageWidth: Int) -> Result? {
+  private func getResultForSmokeDetection(_ modelOut: Tensor, scaledPixelBuffer: CVPixelBuffer, predictionInvoker: PredictionInvoker, startDate: Date, imageHeight: Int, imageWidth: Int) -> Result? {
     var inferences: [Inference] = []
     guard let prediction = postProcess.invoke(modelOut: modelOut) as! PredictionBoxes? else {
       return nil
     }
     var bestPrediction = prediction
-    if ttaEnabled && !continuesDetection {
+    if ttaEnabled {
       let ttaService = TTAService(predictionInvoker: predictionInvoker, postProcessor: postProcess as! ModelPostProcessor)
       if let foundPrediction = ttaService.findBetterPrediction(forImage: scaledPixelBuffer, withPrediction: prediction) {
         bestPrediction = foundPrediction
@@ -213,9 +215,13 @@ class ModelDataHandler: NSObject {
     var result: [Inference] = []
     
     for i in 0..<pred.boxes.count {
+      let score = pred.probabilities[i]
+      guard score >= threshold else {
+        continue
+      }
+      
       let box = pred.boxes[i].toArray() as! [Int]
       let label = createRecognitionLabel(imageArea: imageArea, objectClass: pred.classIndexes[i], box: box)
-      let score = pred.probabilities[i]
       var rect = CGRect.zero
       rect.origin.x = CGFloat(box[0])
       rect.origin.y = CGFloat(box[1])
@@ -226,7 +232,7 @@ class ModelDataHandler: NSObject {
       newRect.origin.y +=  420 // 420 move from top to detection rect start
       result.append(Inference(
                       confidence: score,
-                      className: label.label,
+                      className: label.label + (pred.isAugmented ? "_TTA" : ""),
                       rect: newRect,
                       displayColor: label.color)
       )
